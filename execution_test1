@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Execution API · Slice 1 test</title>
+  <style>
+    :root {
+      --red:#DA020E; --red-dk:#A30009; --red-deep:#6B0006;
+      --black:#1A1A1A; --charcoal:#2A2A2A; --gold:#FBE122;
+      --text:#F4F4F4; --text-2:#C4B8BA; --text-3:#8A7E80;
+      --bg:#141414; --card:#222021; --border:rgba(218,2,14,0.3);
+      --green:#3FA34D; --red-lt:rgba(218,2,14,0.12); --green-lt:rgba(63,163,77,0.14);
+    }
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+      background:var(--bg);color:var(--text);padding:22px 16px;max-width:600px;margin:0 auto;
+      background-image:linear-gradient(180deg,var(--red-deep) 0%,var(--bg) 220px);}
+    h1{font-size:24px;font-weight:800;margin-bottom:2px;letter-spacing:-0.5px;text-transform:uppercase;font-style:italic;}
+    h1 span{color:var(--gold);}
+    .sub{font-size:13px;color:var(--text-2);margin-bottom:18px;text-transform:uppercase;letter-spacing:1px;font-size:11px;}
+    .card{background:var(--card);border:0.5px solid var(--border);border-radius:12px;padding:16px;margin-bottom:14px;
+      border-left:3px solid var(--red);}
+    .card-title{font-size:13px;font-weight:700;color:var(--gold);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.5px;}
+    label{font-size:12px;color:var(--text-2);display:block;margin:8px 0 4px;}
+    input,select{width:100%;padding:11px 13px;font-size:16px;border:0.5px solid var(--border);
+      border-radius:8px;background:var(--charcoal);color:var(--text);min-height:46px;margin-bottom:6px;}
+    input:focus,select:focus{outline:none;border-color:var(--red);}
+    button{background:var(--red);color:#fff;border:none;border-radius:8px;padding:12px 16px;
+      font-size:15px;cursor:pointer;min-height:46px;width:100%;margin-top:6px;font-weight:700;
+      text-transform:uppercase;letter-spacing:0.5px;}
+    button:active{opacity:.85;}
+    button.secondary{background:var(--charcoal);color:var(--gold);border:0.5px solid var(--red);}
+    .status{font-size:13px;margin-top:8px;font-weight:600;}
+    .status.ok{color:var(--green);} .status.err{color:#FF6B6B;}
+    .row{display:flex;gap:8px;} .row > *{flex:1;}
+    .trip{border:0.5px solid var(--border);border-radius:10px;padding:12px;margin-bottom:8px;background:var(--charcoal);
+      border-left:3px solid var(--gold);}
+    .trip-top{display:flex;justify-content:space-between;align-items:center;}
+    .trip-dest{font-size:15px;font-weight:700;text-transform:uppercase;}
+    .trip-id{font-size:11px;color:var(--text-3);font-family:ui-monospace,monospace;}
+    .pill{font-size:10px;padding:3px 9px;border-radius:4px;background:var(--red);color:#fff;text-transform:uppercase;font-weight:700;letter-spacing:0.5px;}
+    .ms{display:flex;align-items:center;gap:8px;padding:7px 0;border-top:0.5px solid rgba(255,255,255,0.08);font-size:13px;}
+    .ms:first-child{border-top:none;}
+    .ms .due{margin-left:auto;font-size:12px;color:var(--text-3);}
+    .ms .due.soon{color:var(--gold);font-weight:700;}
+    .result{font-family:ui-monospace,monospace;font-size:11px;background:var(--black);border-radius:8px;
+      padding:10px;white-space:pre-wrap;word-break:break-word;color:var(--text-2);margin-top:8px;border:0.5px solid var(--border);}
+  </style>
+</head>
+<body>
+  <h1>MATCH<span>DAY</span> TRIPS</h1>
+  <div class="sub">Execution · Slice 1 · Trips + milestones</div>
+
+  <div class="card">
+    <div class="card-title">Execution API URL</div>
+    <input type="text" id="api" placeholder="https://script.google.com/macros/s/…/exec">
+  </div>
+
+  <div class="card">
+    <div class="card-title">Create a trip</div>
+    <label>Destination</label>
+    <input type="text" id="dest" value="Barcelona">
+    <div class="row">
+      <div><label>Start date</label><input type="date" id="start"></div>
+      <div><label>End date</label><input type="date" id="end"></div>
+    </div>
+    <label>Home airport</label>
+    <input type="text" id="airport" value="Manchester">
+    <button onclick="createTrip()">Create trip + auto-milestones</button>
+    <div class="status" id="create-status"></div>
+    <div class="result" id="create-result" style="display:none"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Trips &amp; their milestones</div>
+    <button class="secondary" onclick="loadAll()">Load all trips</button>
+    <div class="status" id="load-status"></div>
+    <div id="trips" style="margin-top:10px"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Cross-trip deadlines (soonest first)</div>
+    <button class="secondary" onclick="loadDeadlines()">Load deadlines</button>
+    <div class="status" id="dl-status"></div>
+    <div id="deadlines" style="margin-top:10px"></div>
+  </div>
+
+<script>
+  function api(){ return document.getElementById('api').value.trim(); }
+  function setStatus(id,ok,msg){var e=document.getElementById(id);e.textContent=msg;e.className='status '+(ok?'ok':'err');}
+  function today(){return new Date().toISOString().split('T')[0];}
+
+  // default the date pickers to ~6 weeks out, 4-day trip
+  (function(){
+    var s=new Date(); s.setDate(s.getDate()+42);
+    var e=new Date(s); e.setDate(e.getDate()+3);
+    document.getElementById('start').value=s.toISOString().split('T')[0];
+    document.getElementById('end').value=e.toISOString().split('T')[0];
+  })();
+
+  async function createTrip(){
+    if(!api()){setStatus('create-status',false,'Paste the API URL first');return;}
+    setStatus('create-status',true,'Creating…');
+    try{
+      var res=await fetch(api(),{method:'POST',body:JSON.stringify({
+        action:'createTrip',
+        destination:document.getElementById('dest').value,
+        start_date:document.getElementById('start').value,
+        end_date:document.getElementById('end').value,
+        home_airport:document.getElementById('airport').value
+      })});
+      var data=await res.json();
+      var r=document.getElementById('create-result');
+      r.style.display='block'; r.textContent=JSON.stringify(data,null,2);
+      if(data.ok){
+        setStatus('create-status',true,'✓ Created '+data.result.trip_id+' with '+data.result.milestones_created+' milestones');
+        loadAll();
+      } else setStatus('create-status',false,'✗ '+data.error);
+    }catch(err){setStatus('create-status',false,'✗ '+err.message);}
+  }
+
+  async function loadAll(){
+    if(!api()){setStatus('load-status',false,'Paste the API URL first');return;}
+    setStatus('load-status',true,'Loading…');
+    try{
+      var res=await fetch(api()+'?action=getTrips');
+      var data=await res.json();
+      if(!data.ok){setStatus('load-status',false,'✗ '+data.error);return;}
+      var wrap=document.getElementById('trips'); wrap.innerHTML='';
+      if(!data.trips.length){setStatus('load-status',true,'No trips yet — create one above');return;}
+      // for each trip, also pull its milestones
+      for(var i=0;i<data.trips.length;i++){
+        var t=data.trips[i];
+        var msRes=await fetch(api()+'?action=getMilestones&trip='+encodeURIComponent(t.trip_id));
+        var msData=await msRes.json();
+        var ms=(msData.ok?msData.milestones:[]);
+        var html='<div class="trip"><div class="trip-top"><span class="trip-dest">'+t.destination+
+          '</span><span class="pill">'+t.status+'</span></div>'+
+          '<div class="trip-id">'+t.trip_id+' · '+t.start_date+' → '+t.end_date+'</div>';
+        ms.forEach(function(m){
+          var soon=(m.due_date && m.due_date<=addDays(today(),3));
+          html+='<div class="ms">'+(m.done?'✓':'○')+' '+m.name+
+            '<span class="due'+(soon?' soon':'')+'">'+m.due_date+'</span></div>';
+        });
+        html+='</div>';
+        wrap.innerHTML+=html;
+      }
+      setStatus('load-status',true,'✓ '+data.trips.length+' trip(s)');
+    }catch(err){setStatus('load-status',false,'✗ '+err.message);}
+  }
+
+  async function loadDeadlines(){
+    if(!api()){setStatus('dl-status',false,'Paste the API URL first');return;}
+    setStatus('dl-status',true,'Loading…');
+    try{
+      var res=await fetch(api()+'?action=getDeadlines');
+      var data=await res.json();
+      if(!data.ok){setStatus('dl-status',false,'✗ '+data.error);return;}
+      var wrap=document.getElementById('deadlines'); wrap.innerHTML='';
+      data.deadlines.forEach(function(m){
+        var soon=(m.due_date && m.due_date<=addDays(today(),3));
+        wrap.innerHTML+='<div class="ms">○ <b>'+m.destination+'</b> · '+m.name+
+          '<span class="due'+(soon?' soon':'')+'">'+m.due_date+'</span></div>';
+      });
+      setStatus('dl-status',true,'✓ '+data.deadlines.length+' open deadline(s)');
+    }catch(err){setStatus('dl-status',false,'✗ '+err.message);}
+  }
+
+  function addDays(d,n){var p=d.split('-');var x=new Date(p[0],p[1]-1,p[2]);x.setDate(x.getDate()+n);return x.toISOString().split('T')[0];}
+</script>
+</body>
+</html>
