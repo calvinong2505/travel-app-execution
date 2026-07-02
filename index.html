@@ -131,8 +131,10 @@
   /* Modal */
   .ov{position:fixed;inset:0;background:rgba(40,20,22,0.5);z-index:50;display:none;align-items:flex-end;justify-content:center;}
   .ov.on{display:flex;}
-  .sheet{background:var(--bg);border-radius:20px 20px 0 0;width:100%;max-width:560px;max-height:92vh;overflow-y:auto;padding:18px 18px 28px;}
-  .sheet-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;}
+  .sheet{background:var(--bg);border-radius:20px 20px 0 0;width:100%;max-width:560px;
+    max-height:82vh;overflow-y:auto;padding:0 18px calc(28px + env(safe-area-inset-bottom)) 18px;-webkit-overflow-scrolling:touch;}
+  .sheet-h{display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;
+    background:var(--bg);padding:16px 0 12px;margin-bottom:6px;z-index:2;}
   .sheet-t{font-size:18px;font-weight:800;}
   .x{font-size:22px;color:var(--t3);cursor:pointer;background:none;border:none;width:40px;height:40px;}
 
@@ -445,14 +447,16 @@ function toggleChk(itemId,index){
 
 // ---- Milestones tab ----
 function msHtml(){
-  var ms=state.cache.milestones.slice().sort(function(a,b){return (a.due_date||'')>(b.due_date||'')?1:-1;});
+  var ms=state.cache.milestones.slice().sort(function(a,b){return (a.done===b.done)?((a.due_date||'')>(b.due_date||'')?1:-1):(a.done?1:-1);});
   if(!ms.length) return '<div class="empty">No milestones yet. 🎯</div>';
   var h='';
   ms.forEach(function(m){
-    h+='<div class="ms'+(m.done?' done':'')+'" data-ms="'+m.milestone_id+'" onclick="toggleMs(\''+m.milestone_id+'\')">'+
-      '<span class="box">'+(m.done?'✓':'')+'</span>'+
-      '<span class="ms-name">'+esc(m.name)+'</span>'+
-      '<span class="ms-due'+(soon(m.due_date)&&!m.done?' soon':'')+'">'+fmtNice(m.due_date)+'</span></div>';
+    var desc=m.description?'<div style="font-size:12px;color:var(--t3);margin-top:2px">'+esc(m.description)+'</div>':'';
+    h+='<div class="ms'+(m.done?' done':'')+'" data-ms="'+m.milestone_id+'">'+
+      '<span class="box" onclick="event.stopPropagation();toggleMs(\''+m.milestone_id+'\')">'+(m.done?'✓':'')+'</span>'+
+      '<div style="flex:1;cursor:pointer" onclick="editMilestone(\''+m.milestone_id+'\')">'+
+        '<div class="ms-name">'+esc(m.name)+'</div>'+desc+'</div>'+
+      '<span class="ms-due'+(soon(m.due_date)&&!m.done?' soon':'')+'" onclick="editMilestone(\''+m.milestone_id+'\')" style="cursor:pointer">'+fmtNice(m.due_date)+'</span></div>';
   });
   return h;
 }
@@ -467,6 +471,33 @@ function toggleMs(id){
     if(el){ el.classList.toggle('done',!nowDone); el.querySelector('.box').textContent=!nowDone?'✓':''; }
     toast('Could not save');
   });
+}
+function editMilestone(id){
+  var m=state.cache.milestones.filter(function(x){return x.milestone_id===id;})[0];
+  if(!m) return;
+  openSheet(sheetHead('Edit milestone')+
+    '<label>Name</label><input id="em-name" value="'+esc(m.name)+'">'+
+    '<label>Due date</label><input type="date" id="em-due" value="'+esc(m.due_date||'')+'">'+
+    '<label>Description / details (optional)</label><textarea id="em-desc" rows="3" placeholder="Any important details — booking refs, reminders, links…">'+esc(m.description||'')+'</textarea>'+
+    '<button class="btn" onclick="saveEditMs(\''+id+'\')">Save changes</button>'+
+    '<button class="btn ghost" style="margin-top:8px" onclick="delMs(\''+id+'\')">Delete milestone</button>');
+}
+function saveEditMs(id){
+  var changes={
+    name:document.getElementById('em-name').value.trim(),
+    due_date:document.getElementById('em-due').value,
+    description:document.getElementById('em-desc').value.trim()
+  };
+  var m=state.cache.milestones.filter(function(x){return x.milestone_id===id;})[0];
+  if(m){ m.name=changes.name; m.due_date=changes.due_date; m.description=changes.description; }
+  closeSheet(); renderTab(); toast('Milestone updated');
+  apiPost({action:'updateMilestone',milestone_id:id,changes:changes}).catch(function(){ toast('Could not save'); });
+}
+function delMs(id){
+  if(!confirm('Delete this milestone?')) return;
+  state.cache.milestones=state.cache.milestones.filter(function(x){return x.milestone_id!==id;});
+  closeSheet(); renderTab(); toast('Milestone deleted');
+  apiPost({action:'deleteMilestone',milestone_id:id}).catch(function(){ toast('Could not save'); });
 }
 
 // ---- Bookings tab ----
@@ -494,7 +525,7 @@ function oneBooking(b){
       '<button class="btn ghost sm" style="margin-left:8px" onclick="setGate(\''+b.booking_id+'\',\''+lbl+'\')">Set</button></div>';
   }
   var link=b.confirmation_link?'<a class="conf" href="'+esc(b.confirmation_link)+'" target="_blank">Open confirmation →</a>':'';
-  return '<div class="bk"><div class="bk-top"><span class="bk-kind">'+esc(b.kind)+'</span><span class="bk-title">'+esc(title)+'</span></div>'+
+  return '<div class="bk"><div class="bk-top" onclick="editBooking(\''+b.booking_id+'\')" style="cursor:pointer"><span class="bk-kind">'+esc(b.kind)+'</span><span class="bk-title">'+esc(title)+'</span><span style="color:var(--t3);font-size:13px">✎</span></div>'+
     '<div class="bk-grid">'+rows+'</div>'+gate+link+'</div>';
 }
 function setGate(id,label){
@@ -627,13 +658,18 @@ function addMilestoneForm(){
   openSheet(sheetHead('Add milestone')+
     '<label>Name</label><input id="m-name" placeholder="e.g. Renew travel insurance">'+
     '<label>Due date</label><input type="date" id="m-due" value="'+addDays(today(),7)+'">'+
+    '<label>Description / details (optional)</label><textarea id="m-desc" rows="3" placeholder="Any important details — booking refs, reminders, links…"></textarea>'+
     '<button class="btn" onclick="saveMs()">Add milestone</button>');
 }
 function saveMs(){
   var name=document.getElementById('m-name').value.trim();
   if(!name){ toast('Enter a name'); return; }
-  apiPost({action:'addMilestone',trip_id:state.trip.trip_id,name:name,due_date:document.getElementById('m-due').value})
-    .then(function(d){ if(d.ok){ closeSheet(); toast('Milestone added'); openTrip(state.trip.trip_id); } else toast('Error: '+d.error); });
+  closeSheet(); toast('Milestone added');
+  apiPost({action:'addMilestone',trip_id:state.trip.trip_id,name:name,
+    due_date:document.getElementById('m-due').value,
+    description:document.getElementById('m-desc').value.trim()})
+    .then(function(d){ if(d.ok){ openTrip(state.trip.trip_id); } else toast('Error: '+d.error); })
+    .catch(function(){ toast('Could not save'); });
 }
 
 // ---- Add booking (kind-aware) ----
@@ -645,24 +681,63 @@ var BK_FIELDS={
   other:[['title','Title'],['provider','Provider'],['confirmation_ref','Confirmation'],['date','Date','date'],['time','Time'],['notes','Notes']]
 };
 var GATE_KINDS={flight:'Gate',train:'Platform'};
+var editingBooking=null;  // null = adding; otherwise the booking being edited
+
 function addBookingForm(){
+  editingBooking=null;
   openSheet(sheetHead('Add booking')+
     '<label>Kind</label><select id="b-kind" onchange="bkFields()"><option value="flight">Flight</option><option value="train">Train</option><option value="event">Event</option><option value="hotel">Hotel</option><option value="other">Other</option></select>'+
     '<div id="b-fields"></div><button class="btn" onclick="saveBk()">Save booking</button>');
   bkFields();
 }
+
+function editBooking(bookingId){
+  var b=state.cache.bookings.filter(function(x){return x.booking_id===bookingId;})[0];
+  if(!b) return;
+  editingBooking=b;
+  var kinds=['flight','train','event','hotel','other'];
+  var sel='<label>Kind</label><select id="b-kind" onchange="bkFields()">';
+  kinds.forEach(function(k){ sel+='<option value="'+k+'"'+(k===b.kind?' selected':'')+'>'+k.charAt(0).toUpperCase()+k.slice(1)+'</option>'; });
+  sel+='</select>';
+  openSheet(sheetHead('Edit booking')+sel+
+    '<div id="b-fields"></div>'+
+    '<button class="btn" onclick="saveBk()">Save changes</button>'+
+    '<button class="btn ghost" style="margin-top:8px" onclick="delBooking(\''+bookingId+'\')">Delete booking</button>');
+  bkFields();
+}
+
 function bkFields(){
   var kind=document.getElementById('b-kind').value, set=BK_FIELDS[kind]||BK_FIELDS.other, h='';
-  set.forEach(function(f){ h+='<label>'+f[1]+'</label><input type="'+(f[2]||'text')+'" id="bf-'+f[0]+'">'; });
-  if(GATE_KINDS[kind]) h+='<label>'+GATE_KINDS[kind]+' (leave blank until known)</label><input id="bf-platform_gate" placeholder="fill on the day">';
+  var b=editingBooking||{};
+  set.forEach(function(f){
+    var v=b[f[0]]?esc(b[f[0]]):'';
+    h+='<label>'+f[1]+'</label><input type="'+(f[2]||'text')+'" id="bf-'+f[0]+'" value="'+v+'">';
+  });
+  if(GATE_KINDS[kind]){
+    var gv=(b.platform_gate)?esc(b.platform_gate):'';
+    h+='<label>'+GATE_KINDS[kind]+' (leave blank until known)</label><input id="bf-platform_gate" placeholder="fill on the day" value="'+gv+'">';
+  }
   document.getElementById('b-fields').innerHTML=h;
 }
+
 function saveBk(){
   var kind=document.getElementById('b-kind').value, set=BK_FIELDS[kind]||BK_FIELDS.other;
   var p={action:'saveBooking',trip_id:state.trip.trip_id,kind:kind};
+  if(editingBooking) p.booking_id=editingBooking.booking_id;  // update in place
   set.forEach(function(f){ var el=document.getElementById('bf-'+f[0]); if(el) p[f[0]]=el.value.trim(); });
   var g=document.getElementById('bf-platform_gate'); if(g&&g.value.trim()){ p.platform_gate=g.value.trim(); p.gate_known=true; }
-  apiPost(p).then(function(d){ if(d.ok){ closeSheet(); toast('Booking saved'); openTrip(state.trip.trip_id); } else toast('Error: '+d.error); });
+  closeSheet(); toast(editingBooking?'Booking updated':'Booking saved');
+  apiPost(p).then(function(d){ if(d.ok){ openTrip(state.trip.trip_id); } else toast('Error: '+d.error); })
+    .catch(function(){ toast('Could not save'); });
+  editingBooking=null;
+}
+
+function delBooking(bookingId){
+  if(!confirm('Delete this booking?')) return;
+  state.cache.bookings=state.cache.bookings.filter(function(x){return x.booking_id!==bookingId;});
+  closeSheet(); renderTab(); toast('Booking deleted');
+  apiPost({action:'deleteBooking',booking_id:bookingId}).catch(function(){ toast('Could not save'); });
+  editingBooking=null;
 }
 </script>
 </body>
