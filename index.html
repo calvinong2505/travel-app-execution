@@ -1,549 +1,1064 @@
-// ============================================================
-// Trip Execution — Backend API (Code.gs) — SLICE 1
-// Trips + Milestones
-// ============================================================
-// Built on the proven CORS POC pattern: GET for reads,
-// text/plain POST for writes, everything returns JSON.
-//
-// SETUP:
-// 1. This is the SAME Apps Script project where you ran
-//    setupExecution() — so EXECUTION_SHEET_ID is already in
-//    Script Properties. Just REPLACE the setup code with this
-//    file (or add it alongside — setupExecution can stay).
-// 2. Deploy → New deployment → Web app →
-//    Execute as: Me · Who has access: Anyone
-// 3. Copy the /exec URL — that's the execution API endpoint.
-// ============================================================
-
-var TZ = 'Asia/Singapore';
-
-// ---- JSON response helper (same as POC) ----
-function jsonOutput(obj) {
-  return ContentService
-    .createTextOutput(JSON.stringify(obj))
-    .setMimeType(ContentService.MimeType.JSON);
-}
-
-// ---- Spreadsheet access ----
-function execSS_() {
-  var id = PropertiesService.getScriptProperties().getProperty('EXECUTION_SHEET_ID');
-  if (!id) throw new Error('EXECUTION_SHEET_ID not set — run setupExecution() first');
-  return SpreadsheetApp.openById(id);
-}
-
-function sheetByName_(name) {
-  var sheet = execSS_().getSheetByName(name);
-  if (!sheet) throw new Error('Missing tab: ' + name);
-  return sheet;
-}
-
-// ---- Generic read: returns array of row objects keyed by header ----
-function readRows_(name) {
-  var sheet = sheetByName_(name);
-  if (sheet.getLastRow() <= 1) return [];
-  var data = sheet.getDataRange().getValues();
-  var headers = data[0].map(function (h) { return h.toString().trim(); });
-  var out = [];
-  for (var i = 1; i < data.length; i++) {
-    if (!data[i][0] && data[i][0] !== 0) continue; // skip blank rows
-    var obj = {};
-    headers.forEach(function (h, j) { obj[h] = data[i][j]; });
-    out.push(obj);
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>EuroTrip</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj4KPGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+CjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iI0M5MjgyRSIvPjxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iIzhBMTQxOCIvPjwvbGluZWFyR3JhZGllbnQ+PC9kZWZzPgo8cmVjdCB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgcng9IjExMiIgZmlsbD0idXJsKCNnKSIvPgo8cGF0aCBkPSJNMjU2IDY2Yy02MCAwLTEwOCA0Ny0xMDggMTA1IDAgNzYgMTA4IDE0OCAxMDggMTQ4czEwOC03MiAxMDgtMTQ4YzAtNTgtNDgtMTA1LTEwOC0xMDV6IiBmaWxsPSIjZmZmIi8+CjxjaXJjbGUgY3g9IjI1NiIgY3k9IjE3MSIgcj0iNjAiIGZpbGw9IiNCODFFMjIiLz4KPGNpcmNsZSBjeD0iMjU2IiBjeT0iMTcxIiByPSI2MCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjUiLz4KPHBhdGggZD0iTTI1NiAxMzlsMjUgMTgtOSAyOWgtMzJsLTktMjl6IiBmaWxsPSIjZmZmIi8+CjxjaXJjbGUgY3g9IjI1NiIgY3k9IjE3MSIgcj0iOCIgZmlsbD0iI2ZmZiIvPgo8dGV4dCB4PSIyNTYiIHk9IjQ1MiIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjQ1IiBmb250LXdlaWdodD0iODAwIiBmaWxsPSIjZmZmIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBsZXR0ZXItc3BhY2luZz0iMCI+RVhFQ1VUSU9OPC90ZXh0Pgo8L3N2Zz4K">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="EuroTrip">
+<meta name="theme-color" content="#B81E22">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Mulish:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --red:#B81E22; --red-2:#A01B20; --red-3:#8A1418;
+    --red-soft:#FBEAEA; --red-line:#F0E0E0;
+    --ink:#1A1A1A; --t1:#222; --t2:#6A5C5E; --t3:#A89A9C;
+    --bg:#F7F4F4; --card:#fff; --line:#F2EAEA;
+    --green:#2E7D32; --green-soft:#EAF3EA;
+    --gold:#B07D00; --gold-soft:#FBF3D8;
+    --r:12px; --r-lg:16px; --shadow:0 2px 10px rgba(160,27,32,0.08);
   }
-  return out;
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+  body{font-family:'Mulish',-apple-system,BlinkMacSystemFont,sans-serif;
+    background:#F4EEEE;
+    background-image:radial-gradient(circle at 15% 0%,rgba(184,30,34,0.06) 0%,transparent 45%),radial-gradient(circle at 85% 8%,rgba(184,30,34,0.05) 0%,transparent 40%);
+    background-attachment:fixed;
+    color:var(--t1);-webkit-text-size-adjust:100%;min-height:100vh;overscroll-behavior-y:none;}
+  .wrap{max-width:560px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;}
+
+  /* ===== Trips-mode redesign (liquid glass) ===== */
+  body.trips-mode{background:#ECE0DE;
+    background-image:
+      radial-gradient(circle at 14% 6%, rgba(210,80,68,0.28) 0%, transparent 44%),
+      radial-gradient(circle at 90% 14%, rgba(224,168,60,0.24) 0%, transparent 40%),
+      radial-gradient(circle at 25% 52%, rgba(200,90,80,0.18) 0%, transparent 46%),
+      radial-gradient(circle at 82% 62%, rgba(180,120,150,0.20) 0%, transparent 46%),
+      radial-gradient(circle at 55% 97%, rgba(170,90,120,0.18) 0%, transparent 52%);}
+  .trips-bg{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;}
+  .trips-bg .routes{position:absolute;inset:0;width:100%;height:100%;opacity:0.85;}
+  .trips-bg .plane{position:absolute;opacity:0.8;}
+  .trips-bg .plane.p1{left:66%;top:calc(24px + env(safe-area-inset-top));transform:rotate(16deg);}
+  .trips-bg .plane.p2{left:14%;top:44%;transform:rotate(-12deg);}
+  .trips-bg .plane.p3{left:70%;top:82%;transform:rotate(14deg);}
+  body.trips-mode .wrap{position:relative;z-index:1;background:transparent;}
+  /* translucent header so blooms show through the top */
+  .hd-trips{background:transparent !important;background-image:
+    linear-gradient(135deg, rgba(201,40,46,0.92) 0%, rgba(160,27,32,0.88) 55%, rgba(138,20,24,0.9) 100%) !important;
+    backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px);}
+  .trips-body-wrap{position:relative;z-index:1;}
+
+  .glass-card{position:relative;display:flex;overflow:hidden;
+    background:rgba(255,255,255,0.28);
+    backdrop-filter:blur(22px) saturate(1.8);-webkit-backdrop-filter:blur(22px) saturate(1.8);
+    border:0.5px solid rgba(255,255,255,0.55);border-radius:20px;margin-bottom:14px;
+    box-shadow:0 8px 28px rgba(120,40,40,0.14), inset 0 1px 0 rgba(255,255,255,0.85), inset 0 0 0 0.5px rgba(255,255,255,0.2);
+    animation:cardIn .3s ease backwards;}
+  @keyframes cardIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+  .gc-flag{width:5px;flex-shrink:0;}
+  .gc-main{flex:1;min-width:0;padding:15px 16px;}
+  .gc-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;}
+  .gc-name{color:#3a1a1a;font-size:21px;font-weight:800;letter-spacing:-0.3px;line-height:1.1;}
+  .gc-sub{color:rgba(60,30,30,0.7);font-size:13px;margin-top:3px;font-weight:500;}
+  .gc-badge{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;padding:4px 9px;border-radius:20px;border:0.5px solid;white-space:nowrap;flex-shrink:0;}
+  .gc-countdown{display:flex;align-items:baseline;gap:6px;margin-top:11px;}
+  .gc-countdown .cd-num{font-size:26px;font-weight:800;color:var(--acc);line-height:1;}
+  .gc-countdown .cd-txt{font-size:13px;color:rgba(60,30,30,0.65);font-weight:600;}
+  .gc-foot{display:flex;align-items:center;gap:8px;margin-top:12px;padding-top:11px;border-top:0.5px solid rgba(120,60,60,0.14);}
+  .gc-foot .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+  .gc-foot .dot.red{background:var(--red);} .gc-foot .dot.gold{background:var(--gold);} .gc-foot .dot.green{background:var(--green);}
+  .gc-foot .foot-label{flex:1;font-size:13px;color:rgba(60,30,30,0.75);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .gc-foot .foot-due{font-size:12px;color:rgba(60,30,30,0.6);font-weight:600;}
+  .gc-foot .foot-due.soon{color:var(--red);}
+  body.trips-mode .sec{position:relative;z-index:1;color:rgba(60,30,30,0.55);}
+  body.trips-mode .empty{position:relative;z-index:1;}
+
+  /* Header */
+  .hd{background:var(--red);
+    background-image:linear-gradient(135deg,#C9282E 0%,var(--red-2) 55%,var(--red-3) 100%);
+    color:#fff;padding:calc(20px + env(safe-area-inset-top)) 20px 34px;position:relative;overflow:hidden;}
+  .hd::after{content:'';position:absolute;top:-40%;right:-10%;width:220px;height:220px;
+    background:radial-gradient(circle,rgba(255,255,255,0.10) 0%,transparent 70%);pointer-events:none;}
+  .hd::before{content:'';position:absolute;bottom:0;left:0;right:0;height:60px;
+    background:linear-gradient(180deg,transparent,rgba(0,0,0,0.08));pointer-events:none;}
+  .hd-eyebrow{font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;opacity:0.82;position:relative;z-index:1;}
+  .hd-title{font-size:25px;font-weight:800;letter-spacing:-0.4px;margin-top:3px;position:relative;z-index:1;}
+  .hd-sub{font-size:13px;opacity:0.85;margin-top:3px;position:relative;z-index:1;}
+  .hd-back{font-size:13px;font-weight:600;opacity:0.85;cursor:pointer;display:inline-flex;align-items:center;gap:3px;margin-bottom:8px;position:relative;z-index:1;}
+  .hd-refresh{position:absolute;top:calc(18px + env(safe-area-inset-top));right:18px;width:38px;height:38px;border-radius:50%;    background:rgba(255,255,255,0.16);border:1px solid rgba(255,255,255,0.15);color:#fff;font-size:17px;
+    cursor:pointer;z-index:2;display:flex;align-items:center;justify-content:center;}
+  .hd-refresh:active{background:rgba(255,255,255,0.28);}
+  .hd-refresh.spin-r{animation:spinr .6s ease;}
+  .hd-del{position:absolute;top:calc(18px + env(safe-area-inset-top));right:64px;width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,0.16);border:1px solid rgba(255,255,255,0.15);color:#fff;font-size:16px;cursor:pointer;z-index:2;display:flex;align-items:center;justify-content:center;}
+  .hd-del:active{background:rgba(255,255,255,0.28);}
+  @keyframes spinr{from{transform:rotate(0);}to{transform:rotate(360deg);}}
+  .hd-stats{display:flex;gap:8px;margin-top:16px;position:relative;z-index:1;}
+  .hd-stat{flex:1;background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.12);border-radius:10px;padding:10px 12px;}
+  .hd-stat .l{font-size:11px;opacity:0.82;}
+  .hd-stat .v{font-size:15px;font-weight:700;margin-top:1px;}
+
+  /* Body */
+  .body{flex:1;padding:16px;}
+  .body.pull{margin-top:0;}
+
+  /* Cards */
+  .card{background:var(--card);
+    background-image:linear-gradient(180deg,#fff 0%,#FFFBFB 100%);
+    border-radius:var(--r-lg);padding:16px;
+    box-shadow:0 4px 16px rgba(160,27,32,0.07),0 1px 3px rgba(160,27,32,0.05);
+    border:1px solid rgba(240,224,224,0.8);margin-bottom:11px;}
+  .card.tap{cursor:pointer;transition:transform .08s;}
+  .card.tap:active{transform:scale(0.99);}
+  .card-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;}
+  .card-title{font-size:18px;font-weight:700;color:var(--ink);}
+  /* imagery trip cards */
+  .trip-card{padding:0;overflow:hidden;position:relative;}
+  .dest-art{height:120px;width:100%;position:relative;overflow:hidden;}
+  .dest-art svg{position:absolute;inset:0;width:100%;height:100%;display:block;}
+  .trip-badge{position:absolute;top:12px;right:12px;background:rgba(255,255,255,0.24);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);color:#fff;font-size:10px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;padding:4px 10px;border-radius:20px;}
+  .trip-name{position:absolute;top:88px;left:16px;color:#fff;font-size:23px;font-weight:800;letter-spacing:-0.3px;text-shadow:0 1px 10px rgba(0,0,0,0.35);}
+  .trip-body{padding:16px;}
+  .countdown{display:flex;align-items:baseline;gap:6px;margin-top:10px;}
+  .cd-num{font-size:28px;font-weight:800;color:var(--red);line-height:1;}
+  .cd-txt{font-size:13px;color:var(--t2);font-weight:600;}
+  /* confetti + celebration */
+  .confetti-pc{position:fixed;top:-20px;width:10px;height:14px;z-index:200;pointer-events:none;border-radius:2px;animation:confetti-fall linear forwards;}
+  @keyframes confetti-fall{to{transform:translateY(110vh) rotate(720deg);opacity:1;}}
+  .celebrate{position:fixed;inset:0;z-index:190;display:flex;align-items:center;justify-content:center;background:rgba(40,20,22,0.4);animation:fadeIn .2s ease;}
+  .celebrate-card{background:#fff;border-radius:20px;padding:28px 26px;text-align:center;max-width:300px;margin:20px;box-shadow:0 12px 40px rgba(0,0,0,0.25);animation:pop .35s cubic-bezier(.2,1.3,.5,1);}
+  @keyframes pop{from{transform:scale(0.8);opacity:0;}to{transform:scale(1);opacity:1;}}
+  .celebrate-emoji{font-size:44px;}
+  .celebrate-title{font-size:19px;font-weight:800;margin-top:8px;color:var(--ink);}
+  .celebrate-sub{font-size:14px;color:var(--t2);margin-top:5px;}
+  .celebrate-btn{margin-top:16px;background:var(--red);color:#fff;border:none;border-radius:10px;padding:11px 22px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;}
+  .card-sub{font-size:13px;color:var(--t2);margin-top:3px;}
+  .card-foot{display:flex;align-items:center;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--line);}
+
+  /* Pills */
+  .pill{font-size:10px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;padding:4px 9px;border-radius:6px;white-space:nowrap;flex-shrink:0;}
+  .pill.planning,.pill.idea{background:#F3EFEF;color:#A89A9A;}
+  .pill.booked{background:var(--green-soft);color:var(--green);}
+  .pill.planned{background:var(--gold-soft);color:var(--gold);}
+  .pill.upcoming{background:var(--red-soft);color:var(--red-2);}
+  .pill.active{background:var(--green-soft);color:var(--green);}
+  .pill.done{background:#EFEFEF;color:#999;}
+
+  .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+  .dot.red{background:var(--red);} .dot.gold{background:var(--gold);} .dot.green{background:var(--green);} .dot.grey{background:#C9BCBC;}
+  .foot-label{font-size:13px;color:#444;font-weight:600;}
+  .foot-due{margin-left:auto;font-size:12px;font-weight:700;color:var(--t2);}
+  .foot-due.soon{color:var(--red);}
+
+  /* Tabs */
+  .tabs{display:flex;gap:4px;padding:14px 16px 2px;background:var(--bg);position:sticky;top:0;z-index:5;}
+  .tab{font-size:13px;font-weight:600;color:var(--t2);padding:8px 14px;border-radius:9px;cursor:pointer;}
+  .tab.on{color:var(--red-2);background:var(--card);border:1px solid var(--red-line);font-weight:700;}
+
+  /* Section label */
+  .sec{font-size:12px;font-weight:700;color:var(--red-2);text-transform:uppercase;letter-spacing:0.5px;margin:14px 2px 8px;}
+
+  /* Itinerary stop */
+  .stop{background:var(--card);border-radius:var(--r);padding:13px 14px;box-shadow:0 1px 6px rgba(160,27,32,0.06);
+    border:1px solid var(--line);margin-bottom:8px;}
+  .stop-top{display:flex;align-items:center;gap:10px;}
+  .stop-time{font-size:13px;font-weight:700;color:#666;min-width:44px;}
+  .stop-name{font-size:15px;font-weight:600;flex:1;color:var(--ink);min-width:0;}
+  .stop-meta{font-size:12px;color:var(--t2);margin-left:54px;margin-top:5px;}
+  .chk{display:flex;align-items:center;gap:9px;font-size:13px;padding:5px 0;cursor:pointer;margin-left:54px;}
+  .chk .box{width:18px;height:18px;border-radius:5px;border:1.5px solid #C9BCBC;display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;transition:.12s;}
+  .chk.done .box{background:var(--green);border-color:var(--green);color:#fff;}
+  .chk.done .txt{text-decoration:line-through;color:var(--t3);}
+
+  /* Milestone row */
+  .ms{display:flex;align-items:center;gap:10px;background:var(--card);border-radius:var(--r);padding:13px 14px;
+    box-shadow:0 1px 6px rgba(160,27,32,0.06);border:1px solid var(--line);margin-bottom:7px;cursor:pointer;}
+  .ms .box{width:19px;height:19px;border-radius:50%;border:1.5px solid #C9BCBC;display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;transition:.12s;}
+  .ms.done .box{background:var(--green);border-color:var(--green);color:#fff;}
+  .ms-name{font-size:14px;font-weight:500;flex:1;color:var(--t1);}
+  .ms.done .ms-name{color:var(--t3);text-decoration:line-through;}
+  .ms-due{font-size:12px;font-weight:700;color:var(--t2);white-space:nowrap;}
+  .ms-due.soon{color:var(--red);}
+
+  /* Booking */
+  .bk{background:var(--card);border-radius:var(--r);padding:14px;box-shadow:0 1px 6px rgba(160,27,32,0.06);
+    border:1px solid var(--line);margin-bottom:9px;}
+  .bk-top{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+  .bk-kind{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;padding:3px 8px;border-radius:6px;background:var(--red-soft);color:var(--red-2);}
+  .bk-title{font-size:15px;font-weight:700;flex:1;}
+  .bk-grid{display:grid;grid-template-columns:auto 1fr;gap:5px 16px;font-size:13px;}
+  .bk-grid .k{color:var(--t3);} .bk-grid .v{font-weight:600;text-align:right;}
+  .gate{margin-top:11px;padding:11px 13px;border-radius:10px;display:flex;align-items:center;gap:10px;}
+  .gate.known{background:var(--green-soft);} .gate.unknown{background:var(--gold-soft);}
+  .gate .l{font-size:12px;color:var(--t2);font-weight:600;}
+  .gate.known .v{font-size:19px;font-weight:800;color:var(--green);margin-left:auto;}
+  .gate.unknown .v{font-size:13px;font-weight:600;font-style:italic;color:var(--gold);margin-left:auto;}
+  .conf{font-size:12px;color:var(--red);font-weight:700;text-decoration:none;margin-top:8px;display:inline-block;}
+
+  /* Buttons + inputs */
+  .btn{background:var(--red);color:#fff;border:none;border-radius:10px;padding:13px;font-size:15px;font-weight:700;
+    cursor:pointer;width:100%;font-family:inherit;}
+  .btn:active{opacity:.9;}
+  .btn.ghost{background:var(--card);color:var(--red-2);border:1px solid var(--red-line);}
+  .btn.sm{padding:8px 14px;width:auto;font-size:13px;}
+  input,select,textarea{width:100%;padding:12px 13px;font-size:16px;border:1px solid var(--red-line);border-radius:10px;
+    background:var(--card);color:var(--t1);font-family:inherit;margin-bottom:8px;}
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--red);}
+  label{font-size:12px;font-weight:600;color:var(--t2);display:block;margin:6px 0 4px;}
+  .frow{display:flex;gap:8px;} .frow>*{flex:1;}
+
+  /* Progress */
+  .prog{height:7px;background:var(--red-soft);border-radius:4px;overflow:hidden;margin-top:4px;}
+  .prog-fill{height:100%;background:var(--green);transition:width .3s;}
+
+  /* FAB */
+  .fab{position:fixed;bottom:20px;right:calc(50% - 280px + 20px);width:54px;height:54px;border-radius:50%;
+    background:var(--red);color:#fff;border:none;font-size:26px;box-shadow:0 4px 16px rgba(160,27,32,0.4);cursor:pointer;z-index:20;}
+  @media(max-width:600px){.fab{right:20px;}}
+
+  /* Modal */
+  .ov{position:fixed;inset:0;background:rgba(40,20,22,0.5);z-index:50;display:none;align-items:flex-end;justify-content:center;}
+  .ov.on{display:flex;}
+  .sheet{background:var(--bg);border-radius:20px 20px 0 0;width:100%;max-width:560px;
+    max-height:82vh;overflow-y:auto;padding:0 18px calc(28px + env(safe-area-inset-bottom)) 18px;-webkit-overflow-scrolling:touch;}
+  .sheet-h{display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;
+    background:var(--bg);padding:16px 0 12px;margin-bottom:6px;z-index:2;}
+  .sheet-t{font-size:18px;font-weight:800;}
+  .x{font-size:22px;color:var(--t3);cursor:pointer;background:none;border:none;width:40px;height:40px;}
+
+  /* Misc */
+  .empty{text-align:center;padding:36px 16px;color:var(--t3);font-size:14px;}
+  .toast{position:fixed;bottom:84px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--ink);
+    color:#fff;font-size:13px;font-weight:600;padding:10px 18px;border-radius:22px;opacity:0;transition:.25s;z-index:100;pointer-events:none;white-space:nowrap;}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+  .spin{width:22px;height:22px;border:2.5px solid var(--red-soft);border-top-color:var(--red);border-radius:50%;animation:sp .7s linear infinite;margin:30px auto;}
+  @keyframes sp{to{transform:rotate(360deg);}}
+  .setup{padding:20px;}
+
+  /* Page transitions */
+  .wrap{animation:none;}
+  .fade-in{animation:fadeIn .22s ease;}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
+  .card,.stop,.ms,.bk{animation:rise .26s ease backwards;}
+  @keyframes rise{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+  .quote{font-size:12px;opacity:0.8;margin-top:8px;font-style:italic;font-weight:500;position:relative;z-index:1;}
+</style>
+</head>
+<body>
+<div class="wrap" id="wrap">
+  <div class="spin" id="boot"></div>
+</div>
+<button class="fab" id="fab" style="display:none" onclick="onFab()">+</button>
+<div class="ov" id="ov" onclick="if(event.target===this)closeSheet()"><div class="sheet" id="sheet"></div></div>
+<div class="toast" id="toast"></div>
+<script>
+// ============================================================
+// EuroTrip — unified execution app
+// ============================================================
+var API = localStorage.getItem('exec_api') || '';  // set once, remembered
+
+var state = { screen:'trips', trip:null, tab:'itinerary', trips:[], cache:{} };
+
+// playful touches
+var QUOTES = [
+  "Pack light, plan tight. ✈️",
+  "The trip is on. Allez!",
+  "Another city, another adventure.",
+  "Bags packed, boots ready. ⚽",
+  "Wheels up soon. 🛫",
+  "Big match energy for a big trip.",
+  "Adventure mode: engaged.",
+  "Somewhere new is calling. 🌍"
+];
+function pickQuote(){ return QUOTES[Math.floor(Math.random()*QUOTES.length)]; }
+
+// ---- Country identity: map a trip's (first) city -> country -> flag colours ----
+// primary = dominant accent (countdown number, pill); bars = flag stripe colours (edge bar)
+var COUNTRY_STYLE = {
+  spain:      { name:'Spain',       primary:'#C8433B', bars:['#C8433B','#E0A83C'] },
+  scotland:   { name:'Scotland',    primary:'#2C5FA8', bars:['#2C5FA8','#EDEDED'] },
+  england:    { name:'England',     primary:'#C0392B', bars:['#EDEDED','#C0392B'] },
+  italy:      { name:'Italy',       primary:'#3E7D4F', bars:['#3E7D4F','#EDE6D8','#C0413B'] },
+  france:     { name:'France',      primary:'#3B5BA0', bars:['#3B5BA0','#EDE6D8','#C0413B'] },
+  switzerland:{ name:'Switzerland', primary:'#C0392B', bars:['#C0392B','#EDEDED'] },
+  austria:    { name:'Austria',     primary:'#C0392B', bars:['#C0392B','#EDEDED','#C0392B'] },
+  hungary:    { name:'Hungary',     primary:'#3E7D4F', bars:['#C0413B','#EDE6D8','#3E7D4F'] },
+  poland:     { name:'Poland',      primary:'#C0413B', bars:['#EDEDED','#C0413B'] },
+  portugal:   { name:'Portugal',   primary:'#3E7D4F', bars:['#3E7D4F','#C0413B'] },
+  croatia:    { name:'Croatia',     primary:'#C0413B', bars:['#C0413B','#EDEDED','#2C5FA8'] },
+  bosnia:     { name:'Bosnia',      primary:'#2C5FA8', bars:['#2C5FA8','#E0A83C'] },
+  slovenia:   { name:'Slovenia',    primary:'#2C5FA8', bars:['#EDEDED','#2C5FA8','#C0413B'] },
+  generic:    { name:'',            primary:'#B81E22', bars:['#B81E22','#8A1418'] }
+};
+// city (or partial) -> country key. first-named city wins for multi-city trips.
+var CITY_COUNTRY = {
+  barcelona:'spain', madrid:'spain', seville:'spain', valencia:'spain',
+  glencoe:'scotland', glasgow:'scotland', edinburgh:'scotland',
+  london:'england', manchester:'england',
+  rome:'italy', roma:'italy', milan:'italy', napoli:'italy', naples:'italy', bologna:'italy', sicily:'italy',
+  paris:'france', lourdes:'france', lyon:'france',
+  zurich:'switzerland', geneva:'switzerland',
+  vienna:'austria',
+  budapest:'hungary',
+  krakow:'poland', warsaw:'poland', warszawa:'poland',
+  lisbon:'portugal', porto:'portugal', fatima:'portugal',
+  zagreb:'croatia',
+  sarajevo:'bosnia',
+  ljubljana:'slovenia'
+};
+function countryStyle(destination){
+  var s=(destination||'').toLowerCase();
+  var first=s.split(/[+,/]/)[0].trim();
+  var keys=Object.keys(CITY_COUNTRY);
+  for(var i=0;i<keys.length;i++){ if(first.indexOf(keys[i])!==-1) return COUNTRY_STYLE[CITY_COUNTRY[keys[i]]]; }
+  for(var j=0;j<keys.length;j++){ if(s.indexOf(keys[j])!==-1) return COUNTRY_STYLE[CITY_COUNTRY[keys[j]]]; }
+  return COUNTRY_STYLE.generic;
+}
+function flagBar(style){
+  var c=style.bars, n=c.length, step=100/n, stops=[];
+  for(var i=0;i<n;i++){ stops.push(c[i]+' '+(i*step)+'%'); stops.push(c[i]+' '+((i+1)*step)+'%'); }
+  return 'linear-gradient(180deg,'+stops.join(',')+')';
 }
 
-// ---- Append a row from an object, in header order ----
-function appendRow_(name, obj) {
-  var sheet = sheetByName_(name);
-  var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn())
-    .getValues()[0].map(function (h) { return h.toString().trim(); });
-  var row = headers.map(function (h) {
-    return obj.hasOwnProperty(h) ? obj[h] : '';
+// ---- Destination imagery (stylized inline-SVG illustrations, matched by city) ----
+function destKey(destination){
+  var s=(destination||'').toLowerCase();
+  var first=s.split(/[+,/]/)[0].trim();
+  var cities=['barcelona','glencoe','rome','roma'];
+  for(var i=0;i<cities.length;i++){ if(first.indexOf(cities[i])!==-1) return cities[i]==='roma'?'rome':cities[i]; }
+  for(var j=0;j<cities.length;j++){ if(s.indexOf(cities[j])!==-1) return cities[j]==='roma'?'rome':cities[j]; }
+  return 'generic';
+}
+function destArt(destination){
+  var key=destKey(destination);
+  var sky={ barcelona:'linear-gradient(180deg,#E8927C 0%,#C15B4E 55%,#8A1418 100%)',
+            glencoe:'linear-gradient(180deg,#8FA9B8 0%,#5E7C8C 55%,#39505C 100%)',
+            rome:'linear-gradient(180deg,#F0B07C 0%,#C97A45 55%,#8A3E18 100%)',
+            generic:'linear-gradient(135deg,#C9282E 0%,#A01B20 55%,#8A1418 100%)' }[key];
+  var inner={
+    barcelona:'<circle cx="278" cy="30" r="15" fill="#FBE3C0" opacity="0.85"/>'+
+      '<g fill="#5A1418" opacity="0.30"><rect x="14" y="92" width="24" height="38"/><rect x="42" y="82" width="18" height="48"/><rect x="248" y="88" width="26" height="42"/><rect x="292" y="76" width="20" height="54"/><rect x="316" y="96" width="18" height="34"/></g>'+
+      '<g fill="#4A0F14" opacity="0.5"><path d="M150 130 L150 46 Q152 32 156 46 L156 130 Z"/><path d="M166 130 L166 36 Q168 20 172 36 L172 130 Z"/><path d="M182 130 L182 46 Q184 32 188 46 L188 130 Z"/><path d="M128 130 L128 56 Q131 42 135 56 L135 130 Z"/><path d="M198 130 L198 56 Q201 42 205 56 L205 130 Z"/><circle cx="153" cy="44" r="2.5" fill="#FBE3C0"/><circle cx="169" cy="34" r="2.5" fill="#FBE3C0"/><circle cx="185" cy="44" r="2.5" fill="#FBE3C0"/></g>',
+    glencoe:'<circle cx="270" cy="30" r="13" fill="#EAF0F2" opacity="0.75"/>'+
+      '<path d="M0 130 L60 60 L110 100 L150 55 L210 110 L250 70 L340 120 L340 130 Z" fill="#39505C" opacity="0.55"/>'+
+      '<path d="M0 130 L40 88 L90 120 L140 80 L190 125 L240 95 L300 128 L340 108 L340 130 Z" fill="#2C3E48" opacity="0.6"/>'+
+      '<path d="M150 55 L158 70 L142 70 Z" fill="#EAF0F2" opacity="0.7"/>',
+    rome:'<circle cx="60" cy="34" r="15" fill="#FBE3C0" opacity="0.8"/>'+
+      '<g fill="#5A2A10" opacity="0.5"><path d="M130 118 Q130 66 210 62 Q290 66 290 118 L290 130 L130 130 Z"/></g>'+
+      '<g fill="#F0B07C" opacity="0.85"><rect x="146" y="82" width="10" height="20" rx="4"/><rect x="168" y="80" width="10" height="22" rx="4"/><rect x="192" y="78" width="10" height="24" rx="4"/><rect x="216" y="80" width="10" height="22" rx="4"/><rect x="240" y="82" width="10" height="20" rx="4"/><rect x="264" y="86" width="10" height="16" rx="4"/></g>',
+    generic:'<circle cx="278" cy="30" r="14" fill="#FBE3C0" opacity="0.7"/>'+
+      '<path d="M60 100 L280 60 L285 74 L120 108 Z" fill="#fff" opacity="0.25"/>'+
+      '<path d="M150 92 L170 50 L182 54 L170 96 Z" fill="#fff" opacity="0.3"/>'+
+      '<circle cx="90" cy="115" r="3" fill="#fff" opacity="0.4"/><circle cx="250" cy="40" r="2.5" fill="#fff" opacity="0.5"/>'
+  }[key];
+  return '<div class="dest-art" style="background:'+sky+'">'+
+    '<svg viewBox="0 0 340 130" preserveAspectRatio="xMidYMax slice" aria-hidden="true">'+inner+'</svg></div>';
+}
+function daysUntil(dateStr){
+  var d=normDateSafe(dateStr); if(!d) return null;
+  var t=new Date(); t.setHours(0,0,0,0);
+  var target=new Date(d+'T00:00:00');
+  return Math.round((target-t)/86400000);
+}
+function normDateSafe(s){ if(!s) return ''; var t=s.toString(); if(/^\d{4}-\d{2}-\d{2}$/.test(t)) return t;
+  var mons={Jan:'01',Feb:'02',Mar:'03',Apr:'04',May:'05',Jun:'06',Jul:'07',Aug:'08',Sep:'09',Oct:'10',Nov:'11',Dec:'12'};
+  var m=t.match(/\b([A-Z][a-z]{2})\s+(\d{1,2})\s+(\d{4})\b/); if(m&&mons[m[1]]) return m[3]+'-'+mons[m[1]]+'-'+('0'+m[2]).slice(-2);
+  if(t.indexOf('T')!==-1&&/^\d{4}-/.test(t)) return t.split('T')[0]; return ''; }
+function countdownLabel(t){
+  var n=daysUntil(t.start_date);
+  if(n===null) return '';
+  if(n>1) return '<span class="cd-num">'+n+'</span> <span class="cd-txt">days to go ⚽</span>';
+  if(n===1) return '<span class="cd-num">1</span> <span class="cd-txt">day to go ⚽</span>';
+  if(n===0) return '<span class="cd-txt" style="color:var(--green);font-weight:800">Today\'s the day! 🎉</span>';
+  var end=daysUntil(t.end_date);
+  if(end!==null && end>=0) return '<span class="cd-txt" style="color:var(--red);font-weight:800">On your trip now ✈️</span>';
+  return '<span class="cd-txt" style="color:var(--t3)">Trip complete</span>';
+}
+
+// ---- Confetti + celebration ----
+function fireConfetti(){
+  var colors=['#B81E22','#E8927C','#FBE3C0','#2E7D32','#F0B07C','#C15B4E'];
+  for(var i=0;i<80;i++){
+    (function(i){
+      var pc=document.createElement('div');
+      pc.className='confetti-pc';
+      pc.style.left=(Math.random()*100)+'vw';
+      pc.style.background=colors[Math.floor(Math.random()*colors.length)];
+      pc.style.animationDuration=(2+Math.random()*2)+'s';
+      pc.style.animationDelay=(Math.random()*0.5)+'s';
+      pc.style.opacity=0;
+      if(Math.random()>0.5) pc.style.borderRadius='50%';
+      document.body.appendChild(pc);
+      setTimeout(function(){ if(pc.parentNode) pc.parentNode.removeChild(pc); },4500);
+    })(i);
+  }
+}
+function celebrate(title,sub,emoji){
+  fireConfetti();
+  var ov=document.createElement('div');
+  ov.className='celebrate';
+  ov.innerHTML='<div class="celebrate-card"><div class="celebrate-emoji">'+(emoji||'⚽')+'</div>'+
+    '<div class="celebrate-title">'+esc(title)+'</div>'+
+    '<div class="celebrate-sub">'+esc(sub)+'</div>'+
+    '<button class="celebrate-btn" onclick="this.closest(\'.celebrate\').remove()">Let\'s go!</button></div>';
+  ov.onclick=function(e){ if(e.target===ov) ov.remove(); };
+  document.body.appendChild(ov);
+}
+// check if a trip just became fully booked and celebrate once per trip per session
+var celebrated={};
+function checkAllBooked(){
+  var items=state.cache.itinerary||[];
+  if(items.length<2) return; // don't celebrate a trip with 0-1 stops
+  var allBooked=items.every(function(x){return x.status==='booked';});
+  var tripId=state.trip&&state.trip.trip_id;
+  if(allBooked && tripId && !celebrated[tripId]){
+    celebrated[tripId]=true;
+    setTimeout(function(){ celebrate('You\'re all set for '+state.trip.destination+'!','Everything\'s booked. Have an amazing trip.','⚽'); },350);
+  }
+}
+
+var TAB_EMOJI = { itinerary:'🗺️', milestones:'🎯', bookings:'🎟️' };
+
+// paint a screen into the wrap with a fade, and stagger the cards
+function paint(html){
+  var w=document.getElementById('wrap');
+  document.body.classList.remove('trips-mode');
+  w.innerHTML=html;
+  w.classList.remove('fade-in'); void w.offsetWidth; w.classList.add('fade-in');
+  var items=w.querySelectorAll('.card,.stop,.ms,.bk,.glass-card');
+  for(var i=0;i<items.length;i++){ items[i].style.animationDelay=(i*0.03)+'s'; }
+}
+
+// ---- API helpers (proven CORS pattern: GET + text/plain POST) ----
+function apiGet(action, params){
+  var q = '?action=' + action;
+  if(params) Object.keys(params).forEach(function(k){ q += '&' + k + '=' + encodeURIComponent(params[k]); });
+  return fetch(API + q).then(function(r){ return r.json(); });
+}
+function apiPost(body){
+  return fetch(API, { method:'POST', body: JSON.stringify(body) }).then(function(r){ return r.json(); });
+}
+
+function toast(msg){ var t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(function(){t.classList.remove('show');},2200); }
+function esc(s){ var d=document.createElement('div'); d.textContent=(s==null?'':s); return d.innerHTML; }
+function today(){ return new Date().toISOString().split('T')[0]; }
+function addDays(d,n){ var p=(d||today()).split('-'); var x=new Date(p[0],p[1]-1,p[2]); x.setDate(x.getDate()+n); return x.toISOString().split('T')[0]; }
+function soon(d){ return d && d <= addDays(today(),3); }
+function fmtNice(d){ if(!d) return ''; var p=d.split('-'); if(p.length!==3) return d;
+  var m=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return parseInt(p[2])+' '+m[parseInt(p[1])-1]; }
+
+// ---- Boot ----
+window.addEventListener('DOMContentLoaded', function(){
+  if(!API){ renderSetup(); return; }
+  loadTrips();
+});
+
+function renderSetup(){
+  document.getElementById('boot').style.display='none';
+  document.getElementById('wrap').innerHTML =
+    '<div class="hd"><div class="hd-eyebrow">EuroTrip</div><div class="hd-title">Setup</div></div>'+
+    '<div class="setup"><label>Paste your Execution API URL (ends in /exec)</label>'+
+    '<input type="text" id="api-in" placeholder="https://script.google.com/macros/s/…/exec">'+
+    '<button class="btn" onclick="saveApi()">Save &amp; start</button></div>';
+}
+function saveApi(){
+  var v=document.getElementById('api-in').value.trim();
+  if(!v){ toast('Paste the URL first'); return; }
+  API=v; localStorage.setItem('exec_api',v); loadTrips();
+}
+
+// ---- Load + render trips list ----
+function loadTrips(){
+  // if we already have trips loaded, show them instantly and refresh quietly
+  if(state.trips.length){
+    state.screen='trips';
+    renderTrips();
+    refreshTripsQuiet();
+    return;
+  }
+  document.getElementById('wrap').innerHTML='<div class="spin"></div>';
+  document.getElementById('fab').style.display='none';
+  apiGet('getTrips').then(function(d){
+    if(!d.ok){ toast('Error: '+d.error); return; }
+    state.trips=d.trips; state.screen='trips';
+    return apiGet('getDeadlines');
+  }).then(function(d){
+    state.deadlines = (d && d.ok) ? d.deadlines : [];
+    renderTrips();
+  }).catch(function(e){ toast('Load failed: '+e.message); });
+}
+
+// refresh trips + deadlines in the background without a spinner
+function refreshTripsQuiet(){
+  apiGet('getTrips').then(function(d){
+    if(d.ok) state.trips=d.trips;
+    return apiGet('getDeadlines');
+  }).then(function(d){
+    if(d&&d.ok) state.deadlines=d.deadlines;
+    if(state.screen==='trips') renderTrips();
+  }).catch(function(){});
+}
+
+function nextDeadlineFor(tripId){
+  var ds = state.deadlines.filter(function(m){ return m.trip_id===tripId; });
+  return ds.length ? ds[0] : null;  // already sorted soonest-first by backend
+}
+
+// sort: ongoing first, then soonest upcoming, then past at the bottom
+function sortTripsForDisplay(){
+  if(!state.trips) return;
+  state.trips.sort(function(a,b){
+    return tripSortRank(a) - tripSortRank(b);
   });
-  sheet.appendRow(row);
-  SpreadsheetApp.flush();
+}
+function tripSortRank(t){
+  var start=daysUntil(t.start_date);
+  var end=daysUntil(t.end_date);
+  // ongoing (started, not ended): rank first, most-recently-started on top
+  if(start!==null && start<=0 && (end===null || end>=0)) return -100000 + (start||0);
+  // upcoming: soonest (smallest positive days) first
+  if(start!==null && start>0) return start;
+  // past (ended): after everything, most recent past first (least-negative end nearer top)
+  if(end!==null && end<0) return 100000 - end;
+  // unknown dates: bottom
+  return 200000;
 }
 
-// ---- Update a row found by an id column matching a value ----
-function updateRowById_(name, idCol, idVal, changes) {
-  var sheet = sheetByName_(name);
-  var data = sheet.getDataRange().getValues();
-  var headers = data[0].map(function (h) { return h.toString().trim(); });
-  var idIdx = headers.indexOf(idCol);
-  if (idIdx === -1) return false;
-  for (var i = 1; i < data.length; i++) {
-    if (data[i][idIdx] && data[i][idIdx].toString() === idVal.toString()) {
-      headers.forEach(function (h, j) {
-        if (changes.hasOwnProperty(h)) {
-          sheet.getRange(i + 1, j + 1).setValue(changes[h]);
-        }
-      });
-      SpreadsheetApp.flush();
-      return true;
-    }
-  }
-  return false;
-}
-
-// ---- Delete a row found by id ----
-function deleteRowById_(name, idCol, idVal) {
-  var sheet = sheetByName_(name);
-  var data = sheet.getDataRange().getValues();
-  var headers = data[0].map(function (h) { return h.toString().trim(); });
-  var idIdx = headers.indexOf(idCol);
-  if (idIdx === -1) return false;
-  for (var i = data.length - 1; i >= 1; i--) {
-    if (data[i][idIdx] && data[i][idIdx].toString() === idVal.toString()) {
-      sheet.deleteRow(i + 1);
-      SpreadsheetApp.flush();
-      return true;
-    }
-  }
-  return false;
-}
-
-// delete ALL rows in a sheet whose column matches a value (for cascade delete)
-function deleteAllByCol_(name, col, val) {
-  var sheet = sheetByName_(name);
-  if (!sheet) return 0;
-  var data = sheet.getDataRange().getValues();
-  var headers = data[0].map(function (h) { return h.toString().trim(); });
-  var idx = headers.indexOf(col);
-  if (idx === -1) return 0;
-  var removed = 0;
-  for (var i = data.length - 1; i >= 1; i--) {
-    if (data[i][idx] && data[i][idx].toString() === val.toString()) {
-      sheet.deleteRow(i + 1); removed++;
-    }
-  }
-  SpreadsheetApp.flush();
-  return removed;
-}
-
-// delete a trip and cascade to its milestones, itinerary, bookings
-function deleteTrip_(data) {
-  var tripId = data.trip_id;
-  if (!tripId) return { ok: false, error: 'No trip_id' };
-  var okTrip = deleteRowById_('Trips', 'trip_id', tripId);
-  var ms = deleteAllByCol_('Milestones', 'trip_id', tripId);
-  var it = deleteAllByCol_('Itinerary', 'trip_id', tripId);
-  var bk = deleteAllByCol_('Bookings', 'trip_id', tripId);
-  return { ok: okTrip, cascade: { milestones: ms, itinerary: it, bookings: bk } };
-}
-
-// ---- date helpers (work in plain yyyy-MM-dd strings) ----
-function fmtDate_(d) { return Utilities.formatDate(d, TZ, 'yyyy-MM-dd'); }
-function today_() { return fmtDate_(new Date()); }
-function addDays_(yyyymmdd, n) {
-  var p = yyyymmdd.split('-');
-  var d = new Date(parseInt(p[0]), parseInt(p[1]) - 1, parseInt(p[2]));
-  d.setDate(d.getDate() + n);
-  return fmtDate_(d);
-}
-
-// Normalise a time cell to "HH:mm". Sheets coerces "10:00" into a
-// full Date on the 1899-12-30 epoch, so a Date here means we just
-// want its time-of-day. Plain strings pass through.
-function cleanTime_(v) {
-  if (v === '' || v === null || v === undefined) return '';
-  if (v instanceof Date) return Utilities.formatDate(v, TZ, 'HH:mm');
-  var s = v.toString();
-  if (s.indexOf('T') !== -1) {
-    // ISO-ish timestamp string — pull the HH:mm out
-    var t = s.split('T')[1];
-    return t ? t.slice(0, 5) : s;
-  }
-  return s;
-}
-
-// Normalise any cell value to a clean yyyy-MM-dd string.
-// Handles: real Date objects (from Sheets), ISO strings, plain
-// yyyy-MM-dd strings, and blanks. This is the fix for dates
-// rendering as "Mon Aug 03 2026 00:00:00 GMT".
-function cleanDate_(v) {
-  if (v === '' || v === null || v === undefined) return '';
-  if (v instanceof Date) return fmtDate_(v);
-  var s = v.toString();
-  if (s.indexOf('T') !== -1) return s.split('T')[0];        // ISO string
-  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;               // already clean
-  var d = new Date(s);                                       // last resort
-  return isNaN(d.getTime()) ? s : fmtDate_(d);
-}
-
-// ============================================================
-// ACTIONS
-// ============================================================
-
-// ---- Trips ----
-function getTrips_() {
-  var trips = readRows_('Trips').map(function (t) {
-    t.start_date = cleanDate_(t.start_date);
-    t.end_date   = cleanDate_(t.end_date);
-    return t;
-  });
-  // newest start_date first
-  trips.sort(function (a, b) { return (b.start_date || '') > (a.start_date || '') ? 1 : -1; });
-  return trips;
-}
-
-function createTrip_(data) {
-  var tripId = makeTripId_(data.destination, data.start_date);
-  appendRow_('Trips', {
-    trip_id: tripId,
-    destination: data.destination || '',
-    start_date: data.start_date || '',
-    end_date: data.end_date || '',
-    status: data.status || 'planning',
-    home_airport: data.home_airport || '',
-    trip_facts: data.trip_facts || '',
-    notes: data.notes || ''
-  });
-  // Auto-generate the standard milestones
-  var created = autoMilestones_(tripId, data.start_date);
-  return { trip_id: tripId, milestones_created: created };
-}
-
-function updateTrip_(data) {
-  var ok = updateRowById_('Trips', 'trip_id', data.trip_id, data.changes || {});
-  return { updated: ok };
-}
-
-// trip_id format: slug-yyyymm  e.g. lisbon-202507
-function makeTripId_(destination, startDate) {
-  var slug = (destination || 'trip').toString().toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 24) || 'trip';
-  var ym = (startDate || today_()).replace(/-/g, '').slice(0, 6);
-  var base = slug + '-' + ym;
-  // ensure uniqueness if same slug+month already exists
-  var existing = readRows_('Trips').map(function (t) { return t.trip_id; });
-  if (existing.indexOf(base) === -1) return base;
-  var n = 2;
-  while (existing.indexOf(base + '-' + n) !== -1) n++;
-  return base + '-' + n;
-}
-
-// ---- Milestones ----
-function getMilestones_(tripId) {
-  var rows = readRows_('Milestones').map(function (m) {
-    m.due_date = cleanDate_(m.due_date);
-    m.done = (m.done === true || m.done === 'TRUE' || m.done === 'true');
-    m.auto_created = (m.auto_created === true || m.auto_created === 'TRUE' || m.auto_created === 'true');
-    return m;
-  });
-  if (tripId) rows = rows.filter(function (m) { return m.trip_id === tripId; });
-  rows.sort(function (a, b) { return (a.due_date || '') > (b.due_date || '') ? 1 : -1; });
-  return rows;
-}
-
-// The standard milestone set, dates worked back from start_date
-function autoMilestones_(tripId, startDate) {
-  var start = startDate || today_();
-  var set = [
-    { name: 'Book flights',                  due: today_() },                 // flag immediately
-    { name: 'Book accommodation',            due: addDays_(start, -30) },
-    { name: 'Reserve activities',            due: addDays_(start, -14) },
-    { name: 'Airport transfer / transport',  due: addDays_(start, -7) },
-    { name: 'Pre-trip checklist (passport, insurance, eSIM, currency, adapter, offline maps, screenshots)', due: addDays_(start, -7) }
-  ];
-  set.forEach(function (m) {
-    // never suggest a date in the past — clamp to today
-    var due = (m.due < today_()) ? today_() : m.due;
-    appendRow_('Milestones', {
-      milestone_id: Utilities.getUuid(),
-      trip_id: tripId,
-      name: m.name,
-      due_date: due,
-      done: false,
-      auto_created: true,
-      source_stop_id: ''
+function renderTrips(){
+  sortTripsForDisplay();
+  var h = '<div class="trips-bg" aria-hidden="true">'+ambientBg()+'</div>'+
+    '<div class="hd hd-trips"><button class="hd-refresh" onclick="doRefresh(this)">↻</button><div class="hd-eyebrow">EuroTrip</div>'+
+    '<div class="hd-title">Your trips</div>'+
+    '<div class="hd-sub">'+state.trips.length+' trip'+(state.trips.length===1?'':'s')+'</div>'+
+    '<div class="quote">'+pickQuote()+'</div></div>'+
+    '<div class="body pull trips-body-wrap">';
+  if(!state.trips.length){
+    h += '<div class="empty">No trips yet. ✈️<br>Tap + to add your first.</div>';
+  } else {
+    state.trips.forEach(function(t){
+      var nd = nextDeadlineFor(t.trip_id);
+      var dotcls = nd ? (soon(nd.due_date)?'red':'gold') : 'green';
+      var cd = countdownLabel(t);
+      var cs = countryStyle(t.destination);
+      h += '<div class="glass-card tap" onclick="openTrip(\''+t.trip_id+'\')">'+
+        '<div class="gc-flag" style="background:'+flagBar(cs)+'"></div>'+
+        '<div class="gc-main">'+
+          '<div class="gc-top">'+
+            '<div><div class="gc-name">'+esc(t.destination)+'</div>'+
+            '<div class="gc-sub">'+(cs.name?esc(cs.name)+' · ':'')+fmtNice(t.start_date)+' – '+fmtNice(t.end_date)+
+            (t.home_airport?' · from '+esc(t.home_airport):'')+'</div></div>'+
+            '<div class="gc-badge" style="color:'+cs.primary+';border-color:'+hexA(cs.primary,0.35)+';background:'+hexA(cs.primary,0.12)+'">'+esc(t.status)+'</div>'+
+          '</div>'+
+          (cd?'<div class="gc-countdown" style="--acc:'+cs.primary+'">'+cd+'</div>':'')+
+          gcFoot(nd,dotcls)+
+        '</div></div>';
     });
-  });
-  return set.length;
-}
-
-function addMilestone_(data) {
-  var id = Utilities.getUuid();
-  appendRow_('Milestones', {
-    milestone_id: id,
-    trip_id: data.trip_id,
-    name: data.name || '',
-    due_date: data.due_date || '',
-    done: false,
-    auto_created: false,
-    source_stop_id: data.source_stop_id || '',
-    description: data.description || ''
-  });
-  return { milestone_id: id };
-}
-
-// One-time: add a 'description' column to Milestones if missing.
-// Safe to run repeatedly. Run once from the editor after pasting.
-function migrateMilestoneDescription() {
-  var sheet = sheetByName_('Milestones');
-  var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0]
-    .map(function (h) { return h.toString().trim(); });
-  if (headers.indexOf('description') === -1) {
-    sheet.getRange(1, sheet.getLastColumn() + 1).setValue('description');
-  }
-  return { ok: true, headers: headers };
-}
-
-function updateMilestone_(data) {
-  var ok = updateRowById_('Milestones', 'milestone_id', data.milestone_id, data.changes || {});
-  return { updated: ok };
-}
-
-function deleteMilestone_(data) {
-  var ok = deleteRowById_('Milestones', 'milestone_id', data.milestone_id);
-  return { deleted: ok };
-}
-
-// Cross-trip deadline view: all not-done milestones, soonest first
-function getDeadlines_() {
-  var trips = {};
-  getTrips_().forEach(function (t) { trips[t.trip_id] = t.destination; });
-  var rows = getMilestones_(null).filter(function (m) { return !m.done; });
-  rows.forEach(function (m) { m.destination = trips[m.trip_id] || m.trip_id; });
-  rows.sort(function (a, b) { return (a.due_date || '') > (b.due_date || '') ? 1 : -1; });
-  return rows;
-}
-
-// ============================================================
-// ITINERARY (Slice 2)
-// ============================================================
-
-function getItinerary_(tripId) {
-  var rows = readRows_('Itinerary').map(function (it) {
-    it.date = cleanDate_(it.date);
-    it.time = cleanTime_(it.time);
-    it.est_cost = parseFloat(it.est_cost) || 0;
-    it.route_mins = parseFloat(it.route_mins) || 0;
-    it.route_cost = parseFloat(it.route_cost) || 0;
-    it.day = parseInt(it.day) || 0;
-    // parse the checklist JSON into a real array
-    it.checklist = parseChecklist_(it.checklist_json);
-    delete it.checklist_json;
-    return it;
-  });
-  if (tripId) rows = rows.filter(function (it) { return it.trip_id === tripId; });
-  // sort by day, then time
-  rows.sort(function (a, b) {
-    if (a.day !== b.day) return a.day - b.day;
-    return (a.time || '') > (b.time || '') ? 1 : -1;
-  });
-  return rows;
-}
-
-function parseChecklist_(json) {
-  if (!json) return [];
-  try {
-    var arr = JSON.parse(json);
-    return Array.isArray(arr) ? arr : [];
-  } catch (e) { return []; }
-}
-
-function addItineraryItem_(data) {
-  var id = Utilities.getUuid();
-  var checklist = data.checklist || [];
-  appendRow_('Itinerary', {
-    item_id: id,
-    trip_id: data.trip_id,
-    day: data.day || 1,
-    date: data.date || '',
-    time: data.time || '',
-    name: data.name || '',
-    type: data.type || 'sightseeing',
-    status: data.status || 'idea',
-    est_cost: data.est_cost || '',
-    currency: data.currency || 'SGD',
-    checklist_json: JSON.stringify(checklist),
-    notes: data.notes || '',
-    route_mode: data.route_mode || '',
-    route_mins: data.route_mins || '',
-    route_cost: data.route_cost || '',
-    booking_id: data.booking_id || '',
-    source_stop_id: data.source_stop_id || ''
-  });
-  return { item_id: id };
-}
-
-function updateItineraryItem_(data) {
-  var changes = data.changes || {};
-  // if the checklist was passed as an array, store it as JSON
-  if (changes.checklist) {
-    changes.checklist_json = JSON.stringify(changes.checklist);
-    delete changes.checklist;
-  }
-  var ok = updateRowById_('Itinerary', 'item_id', data.item_id, changes);
-  return { updated: ok };
-}
-
-function deleteItineraryItem_(data) {
-  var ok = deleteRowById_('Itinerary', 'item_id', data.item_id);
-  return { deleted: ok };
-}
-
-// Toggle one checklist item's done state (read JSON, flip, write back)
-function toggleChecklistItem_(data) {
-  var sheet = sheetByName_('Itinerary');
-  var rows = sheet.getDataRange().getValues();
-  var headers = rows[0].map(function (h) { return h.toString().trim(); });
-  var idIdx = headers.indexOf('item_id');
-  var clIdx = headers.indexOf('checklist_json');
-  for (var i = 1; i < rows.length; i++) {
-    if (rows[i][idIdx] && rows[i][idIdx].toString() === data.item_id.toString()) {
-      var list = parseChecklist_(rows[i][clIdx]);
-      if (list[data.index]) {
-        list[data.index].done = !list[data.index].done;
-        sheet.getRange(i + 1, clIdx + 1).setValue(JSON.stringify(list));
-        SpreadsheetApp.flush();
-        return { updated: true, checklist: list };
-      }
-      return { updated: false, error: 'Index out of range' };
+    if(state.deadlines.length){
+      h += '<div class="sec">Across all trips</div>'+
+        '<div class="glass-card tap" onclick="openDeadlines()"><div class="gc-main">'+
+        '<div class="gc-top"><div class="gc-name" style="font-size:16px">⏰ Deadlines</div>'+
+        '<span class="gc-badge" style="color:var(--red-2);border-color:'+hexA('#B81E22',0.3)+';background:'+hexA('#B81E22',0.1)+'">'+state.deadlines.length+' open</span></div>'+
+        '<div class="gc-sub" style="margin-top:6px">Next: '+esc(state.deadlines[0].name.slice(0,30))+' · '+fmtNice(state.deadlines[0].due_date)+'</div></div></div>';
     }
   }
-  return { updated: false, error: 'Item not found' };
+  h += '</div>';
+  paint(h);
+  document.body.classList.add('trips-mode');
+  var fab=document.getElementById('fab'); fab.style.display='block'; fab.textContent='+';
+}
+function gcFoot(nd,dotcls){
+  if(nd){
+    return '<div class="gc-foot"><span class="dot '+dotcls+'"></span>'+
+      '<span class="foot-label">'+esc(nd.name.length>34?nd.name.slice(0,34)+'…':nd.name)+'</span>'+
+      '<span class="foot-due'+(soon(nd.due_date)?' soon':'')+'">'+
+      (soon(nd.due_date)?(nd.due_date===today()?'due today':'due '+fmtNice(nd.due_date)):fmtNice(nd.due_date))+'</span></div>';
+  }
+  return '<div class="gc-foot"><span class="dot green"></span><span class="foot-label">All milestones done 🎉</span></div>';
+}
+function hexA(hex,a){
+  var h=hex.replace('#',''); if(h.length===3) h=h[0]+h[0]+h[1]+h[1]+h[2]+h[2];
+  var r=parseInt(h.slice(0,2),16),g=parseInt(h.slice(2,4),16),b=parseInt(h.slice(4,6),16);
+  return 'rgba('+r+','+g+','+b+','+a+')';
+}
+// ambient background: dashed flight routes + planes, positioned in open areas
+function ambientBg(){
+  return '<svg class="routes" viewBox="0 0 360 700" preserveAspectRatio="none" aria-hidden="true">'+
+    '<path d="M-10 80 Q150 20 380 60" fill="none" stroke="#C06A5E" stroke-width="1.4" stroke-dasharray="5 6"/>'+
+    '<path d="M-10 210 Q180 150 380 200" fill="none" stroke="#C89A4C" stroke-width="1.4" stroke-dasharray="5 6"/>'+
+    '<path d="M-10 360 Q170 430 380 350" fill="none" stroke="#B07A9C" stroke-width="1.4" stroke-dasharray="5 6"/>'+
+    '<path d="M-10 500 Q160 440 380 495" fill="none" stroke="#C06A5E" stroke-width="1.4" stroke-dasharray="5 6"/>'+
+    '<path d="M-10 620 Q180 560 380 610" fill="none" stroke="#C89A4C" stroke-width="1.4" stroke-dasharray="5 6"/>'+
+    '</svg>'+
+    '<span class="plane p1">'+planeSvg('#B8483E')+'</span>'+
+    '<span class="plane p2">'+planeSvg('#C08A3C')+'</span>'+
+    '<span class="plane p3">'+planeSvg('#B07A9C')+'</span>';
+}
+function planeSvg(color){
+  return '<svg viewBox="0 0 24 24" width="22" height="22" fill="'+color+'"><path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L12 19v-5.5z"/></svg>';
 }
 
-// Trip itinerary summary: confirmed-vs-total + planned cost
-function getItinerarySummary_(tripId) {
-  var items = getItinerary_(tripId);
-  var booked = items.filter(function (it) { return it.status === 'booked'; }).length;
-  var planned = items.reduce(function (s, it) { return s + (it.est_cost || 0); }, 0);
-  return {
-    total: items.length,
-    booked: booked,
-    pct: items.length ? Math.round(booked / items.length * 100) : 0,
-    planned_cost: Math.round(planned * 100) / 100
+// ---- Cross-trip deadlines screen ----
+function openDeadlines(){
+  state.screen='deadlines';
+  document.getElementById('wrap').innerHTML='<div class="spin"></div>';
+  apiGet('getDeadlines').then(function(d){
+    state.deadlines = d.ok ? d.deadlines : [];
+    var h='<div class="hd"><div class="hd-back" onclick="loadTrips()">‹ Trips</div>'+
+      '<div class="hd-title">⏰ Deadlines</div><div class="hd-sub">'+state.deadlines.length+' open · soonest first</div></div>'+
+      '<div class="body">';
+    if(!state.deadlines.length){ h+='<div class="empty">Nothing outstanding. Nicely done. 🎉</div>'; }
+    else state.deadlines.forEach(function(m){
+      h+='<div class="ms" onclick="openTripTab(\''+m.trip_id+'\',\'milestones\')"><span class="box"></span>'+
+        '<div style="flex:1"><div class="ms-name" style="font-weight:600">'+esc(m.destination)+'</div>'+
+        '<div style="font-size:12px;color:var(--t2)">'+esc(m.name)+'</div></div>'+
+        '<span class="ms-due'+(soon(m.due_date)?' soon':'')+'">'+fmtNice(m.due_date)+'</span></div>';
+    });
+    h+='</div>';
+    paint(h);
+    document.getElementById('fab').style.display='none';
+  });
+}
+
+// ---- Open a trip: one bundle call, header renders instantly ----
+function openTrip(tripId){
+  state.trip = state.trips.filter(function(t){return t.trip_id===tripId;})[0];
+  state.screen='trip'; state.tab='itinerary';
+  // render the header right away from data we already have; tabs show a spinner
+  state.cache={itinerary:[],milestones:[],bookings:[],summary:{total:0,booked:0,pct:0,planned_cost:0}};
+  renderTrip(true);
+  apiGet('getTripBundle',{trip:tripId}).then(function(d){
+    if(!d.ok){ toast('Error: '+d.error); return; }
+    state.cache.itinerary=d.bundle.itinerary||[];
+    state.cache.milestones=d.bundle.milestones||[];
+    state.cache.bookings=d.bundle.bookings||[];
+    state.cache.summary=d.bundle.summary||{total:0,booked:0,pct:0,planned_cost:0};
+    renderTrip(false);
+  }).catch(function(e){ toast('Load failed: '+e.message); });
+}
+
+function renderTrip(loading){
+  var t=state.trip, s=state.cache.summary;
+  var nd = state.cache.milestones.filter(function(m){return !m.done;})
+    .sort(function(a,b){return (a.due_date||'')>(b.due_date||'')?1:-1;})[0];
+  var h='<div class="hd"><button class="hd-refresh" onclick="doRefresh(this)">↻</button><div class="hd-back" onclick="loadTrips()">‹ Trips</div>'+
+    '<button class="hd-del" onclick="confirmDeleteTrip()" aria-label="Delete trip">🗑</button>'+
+    '<div class="hd-title">'+esc(t.destination)+'</div>'+
+    '<div class="hd-sub">'+fmtNice(t.start_date)+' – '+fmtNice(t.end_date)+' · '+esc(t.trip_id)+'</div>'+
+    '<div class="hd-stats">'+
+      '<div class="hd-stat"><div class="l">Itinerary</div><div class="v">'+(loading?'…':s.booked+'/'+s.total+' booked')+'</div></div>'+
+      '<div class="hd-stat"><div class="l">Next deadline</div><div class="v">'+
+        (loading?'…':(nd?esc(nd.name.split(' ').slice(0,2).join(' '))+' · '+(nd.due_date===today()?'today':fmtNice(nd.due_date)):'All done'))+
+      '</div></div>'+
+    '</div></div>'+
+    '<div class="tabs">'+
+      tabBtn('itinerary','🗺️ Itinerary')+tabBtn('milestones','🎯 Milestones')+tabBtn('bookings','🎟️ Bookings')+
+    '</div><div class="body" id="tabbody" style="padding-top:6px">'+(loading?'<div class="spin"></div>':'')+'</div>';
+  paint(h);
+  if(!loading) renderTab();
+  var fab=document.getElementById('fab'); fab.style.display='block'; fab.textContent='+';
+}
+// delete a trip (cascades to its itinerary, bookings, milestones)
+function confirmDeleteTrip(){
+  var t=state.trip; if(!t) return;
+  if(!confirm('Delete '+t.destination+' and all its itinerary, bookings, and milestones?\n\nThis can\u2019t be undone.')) return;
+  var id=t.trip_id;
+  state.trips=state.trips.filter(function(x){return x.trip_id!==id;});
+  toast('Deleting '+t.destination+'\u2026');
+  loadTrips();
+  apiPost({action:'deleteTrip',trip_id:id}).then(function(r){
+    if(r.ok){ toast('Trip deleted'); } else { toast('Delete failed \u2014 refreshing'); loadTrips(); }
+  }).catch(function(){ toast('Delete failed \u2014 refreshing'); loadTrips(); });
+}
+
+// context-aware refresh (forces a fresh server pull for the current screen)
+function doRefresh(btn){
+  if(btn){ btn.classList.remove('spin-r'); void btn.offsetWidth; btn.classList.add('spin-r'); }
+  if(state.screen==='trip' && state.trip){
+    apiGet('getTripBundle',{trip:state.trip.trip_id}).then(function(d){
+      if(d.ok){ state.cache.itinerary=d.bundle.itinerary||[]; state.cache.milestones=d.bundle.milestones||[];
+        state.cache.bookings=d.bundle.bookings||[]; state.cache.summary=d.bundle.summary; renderTrip(false); toast('Refreshed'); }
+    }).catch(function(){ toast('Refresh failed'); });
+  } else {
+    apiGet('getTrips').then(function(d){
+      if(d.ok) state.trips=d.trips; return apiGet('getDeadlines');
+    }).then(function(d){
+      if(d&&d.ok) state.deadlines=d.deadlines; renderTrips(); toast('Refreshed');
+    }).catch(function(){ toast('Refresh failed'); });
+  }
+}
+
+function tabBtn(id,label){ return '<div class="tab'+(state.tab===id?' on':'')+'" onclick="switchTab(\''+id+'\')">'+label+'</div>'; }
+
+// open a trip directly on a given tab (used from the deadlines list)
+function openTripTab(tripId,tab){
+  // make sure we have the trip object; trips list is already loaded in state.trips
+  if(!state.trips.length){
+    apiGet('getTrips').then(function(d){ state.trips=d.ok?d.trips:[]; _openTripTab(tripId,tab); });
+  } else _openTripTab(tripId,tab);
+}
+function _openTripTab(tripId,tab){
+  state.trip=state.trips.filter(function(t){return t.trip_id===tripId;})[0];
+  if(!state.trip){ toast('Trip not found'); return; }
+  state.screen='trip'; state.tab=tab||'itinerary';
+  state.cache={itinerary:[],milestones:[],bookings:[],summary:{total:0,booked:0,pct:0,planned_cost:0}};
+  renderTrip(true);
+  apiGet('getTripBundle',{trip:tripId}).then(function(d){
+    if(d.ok){ state.cache.itinerary=d.bundle.itinerary||[]; state.cache.milestones=d.bundle.milestones||[];
+      state.cache.bookings=d.bundle.bookings||[]; state.cache.summary=d.bundle.summary; }
+    renderTrip(false);
+  });
+}
+function switchTab(id){ state.tab=id;
+  document.querySelectorAll('.tab').forEach(function(el){
+    el.classList.toggle('on', el.textContent.toLowerCase().indexOf(id)!==-1);
+  });
+  renderTab();
+}
+
+function renderTab(){
+  var b=document.getElementById('tabbody');
+  if(state.tab==='itinerary') b.innerHTML=itinHtml();
+  else if(state.tab==='milestones') b.innerHTML=msHtml();
+  else b.innerHTML=bkHtml();
+}
+
+// ---- Itinerary tab ----
+function itinHtml(){
+  var items=state.cache.itinerary, s=state.cache.summary;
+  var h='<div class="card" style="padding:13px 15px;margin-bottom:12px"><div style="display:flex;justify-content:space-between;font-size:13px;font-weight:600;color:var(--t2)">'+
+    '<span>'+s.booked+' of '+s.total+' booked</span><span>planned '+s.planned_cost+'</span></div>'+
+    '<div class="prog"><div class="prog-fill" style="width:'+s.pct+'%"></div></div></div>';
+  if(!items.length) return h+'<div class="empty">No stops yet. Tap + to add one. 🗺️</div>';
+  var curDay=null;
+  items.forEach(function(it){
+    if(it.day!==curDay){ curDay=it.day; h+='<div class="sec">Day '+it.day+'</div>'; }
+    h+='<div class="stop"><div class="stop-top" onclick="editStop(\''+it.item_id+'\')" style="cursor:pointer">'+
+      '<span class="stop-time">'+esc(it.time||'')+'</span>'+
+      '<span class="stop-name">'+esc(it.name)+'</span>'+
+      '<span class="pill '+esc(it.status)+'">'+esc(it.status)+'</span></div>'+
+      '<div class="stop-meta">'+esc(it.type)+(it.est_cost?' · '+esc(it.currency)+' '+it.est_cost:'')+
+        (it.route_mode?' · '+esc(it.route_mode)+' '+(it.route_mins||'')+'min':'')+'</div>';
+    (it.checklist||[]).forEach(function(c,idx){
+      h+='<div class="chk'+(c.done?' done':'')+'" data-chk="'+it.item_id+'-'+idx+'" onclick="toggleChk(\''+it.item_id+'\','+idx+')">'+
+        '<span class="box">'+(c.done?'✓':'')+'</span><span class="txt">'+esc(c.text)+'</span></div>';
+    });
+    h+='</div>';
+  });
+  return h;
+}
+
+// optimistic checklist toggle (instant UI, background save)
+function toggleChk(itemId,index){
+  var el=document.querySelector('[data-chk="'+itemId+'-'+index+'"]');
+  var nowDone;
+  if(el){ nowDone=!el.classList.contains('done'); el.classList.toggle('done',nowDone); el.querySelector('.box').textContent=nowDone?'✓':''; }
+  // update cache so re-renders keep the state
+  var it=state.cache.itinerary.filter(function(x){return x.item_id===itemId;})[0];
+  if(it&&it.checklist&&it.checklist[index]) it.checklist[index].done=nowDone;
+  apiPost({action:'toggleChecklistItem',item_id:itemId,index:index}).catch(function(){
+    if(el){ el.classList.toggle('done',!nowDone); el.querySelector('.box').textContent=!nowDone?'✓':''; }
+    toast('Could not save');
+  });
+}
+
+// ---- Milestones tab ----
+function msHtml(){
+  var ms=state.cache.milestones.slice().sort(function(a,b){return (a.done===b.done)?((a.due_date||'')>(b.due_date||'')?1:-1):(a.done?1:-1);});
+  if(!ms.length) return '<div class="empty">No milestones yet. 🎯</div>';
+  var h='';
+  ms.forEach(function(m){
+    var desc=m.description?'<div style="font-size:12px;color:var(--t3);margin-top:2px">'+esc(m.description)+'</div>':'';
+    h+='<div class="ms'+(m.done?' done':'')+'" data-ms="'+m.milestone_id+'">'+
+      '<span class="box" onclick="event.stopPropagation();toggleMs(\''+m.milestone_id+'\')">'+(m.done?'✓':'')+'</span>'+
+      '<div style="flex:1;cursor:pointer" onclick="editMilestone(\''+m.milestone_id+'\')">'+
+        '<div class="ms-name">'+esc(m.name)+'</div>'+desc+'</div>'+
+      '<span class="ms-due'+(soon(m.due_date)&&!m.done?' soon':'')+'" onclick="editMilestone(\''+m.milestone_id+'\')" style="cursor:pointer">'+fmtNice(m.due_date)+'</span></div>';
+  });
+  return h;
+}
+function toggleMs(id){
+  var el=document.querySelector('[data-ms="'+id+'"]');
+  var m=state.cache.milestones.filter(function(x){return x.milestone_id===id;})[0];
+  var nowDone=!(m&&m.done);
+  if(m) m.done=nowDone;
+  if(el){ el.classList.toggle('done',nowDone); el.querySelector('.box').textContent=nowDone?'✓':''; }
+  apiPost({action:'updateMilestone',milestone_id:id,changes:{done:nowDone}}).catch(function(){
+    if(m) m.done=!nowDone;
+    if(el){ el.classList.toggle('done',!nowDone); el.querySelector('.box').textContent=!nowDone?'✓':''; }
+    toast('Could not save');
+  });
+}
+function editMilestone(id){
+  var m=state.cache.milestones.filter(function(x){return x.milestone_id===id;})[0];
+  if(!m) return;
+  openSheet(sheetHead('Edit milestone')+
+    '<label>Name</label><input id="em-name" value="'+esc(m.name)+'">'+
+    '<label>Due date</label><input type="date" id="em-due" value="'+esc(m.due_date||'')+'">'+
+    '<label>Description / details (optional)</label><textarea id="em-desc" rows="3" placeholder="Any important details — booking refs, reminders, links…">'+esc(m.description||'')+'</textarea>'+
+    '<button class="btn" onclick="saveEditMs(\''+id+'\')">Save changes</button>'+
+    '<button class="btn ghost" style="margin-top:8px" onclick="delMs(\''+id+'\')">Delete milestone</button>');
+}
+function saveEditMs(id){
+  var changes={
+    name:document.getElementById('em-name').value.trim(),
+    due_date:document.getElementById('em-due').value,
+    description:document.getElementById('em-desc').value.trim()
   };
+  var m=state.cache.milestones.filter(function(x){return x.milestone_id===id;})[0];
+  if(m){ m.name=changes.name; m.due_date=changes.due_date; m.description=changes.description; }
+  closeSheet(); renderTab(); toast('Milestone updated');
+  apiPost({action:'updateMilestone',milestone_id:id,changes:changes}).catch(function(){ toast('Could not save'); });
+}
+function delMs(id){
+  if(!confirm('Delete this milestone?')) return;
+  state.cache.milestones=state.cache.milestones.filter(function(x){return x.milestone_id!==id;});
+  closeSheet(); renderTab(); toast('Milestone deleted');
+  apiPost({action:'deleteMilestone',milestone_id:id}).catch(function(){ toast('Could not save'); });
+}
+
+// ---- Bookings tab ----
+function bkHtml(){
+  var bks=state.cache.bookings;
+  if(!bks.length) return '<div class="empty">No bookings yet. Tap + to add one. 🎟️</div>';
+  var h='';
+  bks.forEach(function(b){ h+=oneBooking(b); });
+  return h;
+}
+function oneBooking(b){
+  var title=b.title||b.provider||b.kind;
+  var rows='';
+  function add(k,v){ if(v) rows+='<div class="k">'+k+'</div><div class="v">'+esc(v)+'</div>'; }
+  if(b.kind==='flight'){ add('Airline',b.provider); add('Ref',b.confirmation_ref); add('Date',fmtNice(b.date)); add('Terminal',b.location); add('Seat',b.seat); add('Boarding',b.time); add('Departure',b.end_time); }
+  else if(b.kind==='train'){ add('Operator',b.provider); add('Ref',b.confirmation_ref); add('Date',fmtNice(b.date)); add('Coach',b.section); add('Seat',b.seat); add('Departs',b.time); }
+  else if(b.kind==='event'){ add('Venue',b.location); add('Date',fmtNice(b.date)); add('Kick-off',b.time); add('Entrance',b.entrance); add('Stand',b.section); add('Seat',b.seat); add('Ref',b.confirmation_ref); }
+  else if(b.kind==='hotel'){ add('Ref',b.confirmation_ref); add('Address',b.location); add('Check-in',fmtNice(b.date)+' '+(b.time||'')); add('Notes',b.notes); }
+  else { add('Provider',b.provider); add('Ref',b.confirmation_ref); add('Date',fmtNice(b.date)); add('Time',b.time); add('Notes',b.notes); }
+  var gate='';
+  if(b.kind==='flight'||b.kind==='train'){
+    var lbl=(b.kind==='flight'?'Gate':'Platform');
+    if(b.gate_known&&b.platform_gate) gate='<div class="gate known"><span class="l">'+lbl+'</span><span class="v">'+esc(b.platform_gate)+'</span></div>';
+    else gate='<div class="gate unknown"><span class="l">'+lbl+'</span><span class="v">not yet assigned</span>'+
+      '<button class="btn ghost sm" style="margin-left:8px" onclick="setGate(\''+b.booking_id+'\',\''+lbl+'\')">Set</button></div>';
+  }
+  var link=b.confirmation_link?'<a class="conf" href="'+esc(b.confirmation_link)+'" target="_blank">Open confirmation →</a>':'';
+  return '<div class="bk"><div class="bk-top" onclick="editBooking(\''+b.booking_id+'\')" style="cursor:pointer"><span class="bk-kind">'+esc(b.kind)+'</span><span class="bk-title">'+esc(title)+'</span><span style="color:var(--t3);font-size:13px">✎</span></div>'+
+    '<div class="bk-grid">'+rows+'</div>'+gate+link+'</div>';
+}
+function setGate(id,label){
+  var g=prompt('Enter '+label+':'); if(g===null||!g.trim()) return;
+  // optimistic
+  var b=state.cache.bookings.filter(function(x){return x.booking_id===id;})[0];
+  if(b){ b.platform_gate=g.trim(); b.gate_known=true; renderTab(); }
+  apiPost({action:'setGate',booking_id:id,platform_gate:g.trim()}).catch(function(){ toast('Could not save'); openTrip(state.trip.trip_id); });
 }
 
 // ============================================================
-// BOOKINGS (Slice 3)
+// FAB — context-aware add
 // ============================================================
-
-function getBookings_(tripId) {
-  var rows = readRows_('Bookings').map(function (b) {
-    b.date = cleanDate_(b.date);
-    b.time = cleanTime_(b.time);
-    b.end_time = cleanTime_(b.end_time);
-    b.gate_known = (b.gate_known === true || b.gate_known === 'TRUE' || b.gate_known === 'true');
-    return b;
-  });
-  if (tripId) rows = rows.filter(function (b) { return b.trip_id === tripId; });
-  rows.sort(function (a, b) {
-    if ((a.date || '') !== (b.date || '')) return (a.date || '') > (b.date || '') ? 1 : -1;
-    return (a.time || '') > (b.time || '') ? 1 : -1;
-  });
-  return rows;
+function onFab(){
+  if(state.screen==='trips') addTripForm();
+  else if(state.screen==='trip'){
+    if(state.tab==='bookings') addBookingForm();
+    else if(state.tab==='milestones') addMilestoneForm();
+    else addStopForm();
+  }
 }
 
-function saveBooking_(data) {
-  if (data.booking_id) {
-    var ok = updateRowById_('Bookings', 'booking_id', data.booking_id, bookingFields_(data));
-    return { updated: ok, booking_id: data.booking_id };
-  }
-  var id = Utilities.getUuid();
-  var obj = bookingFields_(data);
-  obj.booking_id = id;
-  obj.trip_id = data.trip_id;
-  appendRow_('Bookings', obj);
-  if (data.item_id) {
-    updateRowById_('Itinerary', 'item_id', data.item_id, { booking_id: id });
-  }
-  return { created: true, booking_id: id };
+function openSheet(html){ document.getElementById('sheet').innerHTML=html; document.getElementById('ov').classList.add('on'); }
+function closeSheet(){ document.getElementById('ov').classList.remove('on'); }
+function sheetHead(title){ return '<div class="sheet-h"><div class="sheet-t">'+title+'</div><button class="x" onclick="closeSheet()">✕</button></div>'; }
+
+// ---- Add trip ----
+function addTripForm(){
+  var s=addDays(today(),42), e=addDays(s,3);
+  openSheet(sheetHead('New trip')+
+    '<label>Destination</label><input id="t-dest" placeholder="e.g. Barcelona">'+
+    '<div class="frow"><div><label>Start</label><input type="date" id="t-start" value="'+s+'"></div>'+
+    '<div><label>End</label><input type="date" id="t-end" value="'+e+'"></div></div>'+
+    '<label>Home airport</label><input id="t-air" value="Manchester">'+
+    '<label>Trip facts (address, wifi, checkout — optional)</label><textarea id="t-facts" rows="2"></textarea>'+
+    '<button class="btn" onclick="saveTrip()">Create trip + milestones</button>');
+}
+function saveTrip(){
+  var dest=document.getElementById('t-dest').value.trim();
+  if(!dest){ toast('Enter a destination'); return; }
+  apiPost({action:'createTrip',destination:dest,
+    start_date:document.getElementById('t-start').value,
+    end_date:document.getElementById('t-end').value,
+    home_airport:document.getElementById('t-air').value.trim(),
+    trip_facts:document.getElementById('t-facts').value.trim()
+  }).then(function(d){
+    if(d.ok){ closeSheet(); toast('Trip created'); loadTrips(); }
+    else toast('Error: '+d.error);
+  }).catch(function(e){ toast('Failed: '+e.message); });
 }
 
-function bookingFields_(data) {
-  return {
-    kind: data.kind || 'other',
-    title: data.title || '',
-    provider: data.provider || '',
-    confirmation_ref: data.confirmation_ref || '',
-    confirmation_link: data.confirmation_link || '',
-    date: data.date || '',
-    time: data.time || '',
-    end_time: data.end_time || '',
-    location: data.location || '',
-    seat: data.seat || '',
-    section: data.section || '',
-    entrance: data.entrance || '',
-    platform_gate: data.platform_gate || '',
-    gate_known: data.gate_known === true || data.gate_known === 'true',
-    notes: data.notes || ''
+// ---- Edit an existing stop (status, time, cost, etc.) ----
+function editStop(itemId){
+  var it=state.cache.itinerary.filter(function(x){return x.item_id===itemId;})[0];
+  if(!it) return;
+  function opt(v,cur){ return '<option'+(v===cur?' selected':'')+'>'+v+'</option>'; }
+  openSheet(sheetHead('Edit stop')+
+    '<label>Name</label><input id="e-name" value="'+esc(it.name)+'">'+
+    '<div class="frow"><div><label>Day</label><input type="number" id="e-day" value="'+(it.day||1)+'" min="1"></div>'+
+    '<div><label>Time</label><input id="e-time" value="'+esc(it.time||'')+'"></div></div>'+
+    '<div class="frow"><div><label>Type</label><select id="e-type">'+
+      opt('sightseeing',it.type)+opt('food',it.type)+opt('transport',it.type)+opt('accommodation',it.type)+opt('activity',it.type)+'</select></div>'+
+    '<div><label>Status</label><select id="e-status">'+opt('idea',it.status)+opt('planned',it.status)+opt('booked',it.status)+'</select></div></div>'+
+    '<div class="frow"><div><label>Est. cost</label><input type="number" id="e-cost" value="'+esc(it.est_cost||'')+'"></div>'+
+    '<div><label>Currency</label><input id="e-ccy" value="'+esc(it.currency||'EUR')+'"></div></div>'+
+    '<button class="btn" onclick="saveEditStop(\''+itemId+'\')">Save changes</button>'+
+    '<button class="btn ghost" style="margin-top:8px" onclick="delStop(\''+itemId+'\')">Delete stop</button>');
+}
+function saveEditStop(itemId){
+  var changes={
+    name:document.getElementById('e-name').value.trim(),
+    day:parseInt(document.getElementById('e-day').value)||1,
+    time:document.getElementById('e-time').value.trim(),
+    type:document.getElementById('e-type').value,
+    status:document.getElementById('e-status').value,
+    est_cost:document.getElementById('e-cost').value,
+    currency:document.getElementById('e-ccy').value.trim()
   };
+  // optimistic: update cache + re-render, close sheet immediately
+  var it=state.cache.itinerary.filter(function(x){return x.item_id===itemId;})[0];
+  if(it){ Object.keys(changes).forEach(function(k){ it[k]=changes[k]; }); }
+  recomputeSummary();
+  closeSheet(); renderTrip(false); toast("Stop updated");
+  checkAllBooked();
+  apiPost({action:'updateItineraryItem',item_id:itemId,changes:changes}).catch(function(){ toast('Could not save'); });
+}
+function delStop(itemId){
+  if(!confirm('Delete this stop?')) return;
+  state.cache.itinerary=state.cache.itinerary.filter(function(x){return x.item_id!==itemId;});
+  recomputeSummary(); closeSheet(); renderTrip(false); toast("Stop deleted");
+  apiPost({action:'deleteItineraryItem',item_id:itemId}).catch(function(){ toast('Could not save'); });
+}
+// keep the progress bar honest after edits
+function recomputeSummary(){
+  var items=state.cache.itinerary;
+  var booked=items.filter(function(x){return x.status==='booked';}).length;
+  var planned=items.reduce(function(s,x){return s+(parseFloat(x.est_cost)||0);},0);
+  state.cache.summary={total:items.length,booked:booked,
+    pct:items.length?Math.round(booked/items.length*100):0,
+    planned_cost:Math.round(planned*100)/100};
 }
 
-function deleteBooking_(data) {
-  var items = readRows_('Itinerary');
-  items.forEach(function (it) {
-    if (it.booking_id && it.booking_id.toString() === data.booking_id.toString()) {
-      updateRowById_('Itinerary', 'item_id', it.item_id, { booking_id: '' });
-    }
+// ---- Add stop ----
+function addStopForm(){
+  openSheet(sheetHead('Add stop')+
+    '<label>Name</label><input id="s-name" placeholder="e.g. Sagrada Família">'+
+    '<div class="frow"><div><label>Day</label><input type="number" id="s-day" value="1" min="1"></div>'+
+    '<div><label>Time</label><input id="s-time" placeholder="10:00"></div></div>'+
+    '<div class="frow"><div><label>Type</label><select id="s-type"><option>sightseeing</option><option>food</option><option>transport</option><option>accommodation</option><option>activity</option></select></div>'+
+    '<div><label>Status</label><select id="s-status"><option>idea</option><option>planned</option><option>booked</option></select></div></div>'+
+    '<div class="frow"><div><label>Est. cost</label><input type="number" id="s-cost"></div>'+
+    '<div><label>Currency</label><input id="s-ccy" value="EUR"></div></div>'+
+    '<label>Checklist (comma-separated)</label><input id="s-chk" placeholder="Book ticket, Climb tower">'+
+    '<button class="btn" onclick="saveStop()">Add stop</button>');
+}
+function saveStop(){
+  var name=document.getElementById('s-name').value.trim();
+  if(!name){ toast('Enter a name'); return; }
+  var chk=document.getElementById('s-chk').value.split(',').map(function(x){return x.trim();}).filter(Boolean).map(function(x){return {text:x,done:false};});
+  apiPost({action:'addItineraryItem',trip_id:state.trip.trip_id,
+    day:parseInt(document.getElementById('s-day').value)||1,
+    time:document.getElementById('s-time').value.trim(),
+    name:name, type:document.getElementById('s-type').value, status:document.getElementById('s-status').value,
+    est_cost:document.getElementById('s-cost').value, currency:document.getElementById('s-ccy').value.trim(),
+    checklist:chk
+  }).then(function(d){ if(d.ok){ closeSheet(); toast('Stop added'); openTrip(state.trip.trip_id); } else toast('Error: '+d.error); });
+}
+
+// ---- Add milestone ----
+function addMilestoneForm(){
+  openSheet(sheetHead('Add milestone')+
+    '<label>Name</label><input id="m-name" placeholder="e.g. Renew travel insurance">'+
+    '<label>Due date</label><input type="date" id="m-due" value="'+addDays(today(),7)+'">'+
+    '<label>Description / details (optional)</label><textarea id="m-desc" rows="3" placeholder="Any important details — booking refs, reminders, links…"></textarea>'+
+    '<button class="btn" onclick="saveMs()">Add milestone</button>');
+}
+function saveMs(){
+  var name=document.getElementById('m-name').value.trim();
+  if(!name){ toast('Enter a name'); return; }
+  closeSheet(); toast('Milestone added');
+  apiPost({action:'addMilestone',trip_id:state.trip.trip_id,name:name,
+    due_date:document.getElementById('m-due').value,
+    description:document.getElementById('m-desc').value.trim()})
+    .then(function(d){ if(d.ok){ openTrip(state.trip.trip_id); } else toast('Error: '+d.error); })
+    .catch(function(){ toast('Could not save'); });
+}
+
+// ---- Add booking (kind-aware) ----
+var BK_FIELDS={
+  flight:[['provider','Airline'],['confirmation_ref','Confirmation / PNR'],['date','Date','date'],['location','Terminal'],['seat','Seat'],['time','Boarding'],['end_time','Departure'],['confirmation_link','Confirmation link']],
+  train:[['provider','Operator'],['confirmation_ref','Confirmation'],['date','Date','date'],['section','Coach'],['seat','Seat'],['time','Departure'],['confirmation_link','Confirmation link']],
+  event:[['title','Fixture'],['location','Venue'],['date','Date','date'],['time','Kick-off'],['entrance','Entrance / gate'],['section','Stand'],['seat','Row + seat'],['confirmation_ref','Ticket ref'],['confirmation_link','Ticket link']],
+  hotel:[['provider','Hotel'],['confirmation_ref','Confirmation'],['location','Address'],['date','Check-in date','date'],['time','Check-in time'],['notes','Notes (checkout, wifi)']],
+  other:[['title','Title'],['provider','Provider'],['confirmation_ref','Confirmation'],['date','Date','date'],['time','Time'],['notes','Notes']]
+};
+var GATE_KINDS={flight:'Gate',train:'Platform'};
+var editingBooking=null;  // null = adding; otherwise the booking being edited
+
+function addBookingForm(){
+  editingBooking=null;
+  openSheet(sheetHead('Add booking')+
+    '<label>Kind</label><select id="b-kind" onchange="bkFields()"><option value="flight">Flight</option><option value="train">Train</option><option value="event">Event</option><option value="hotel">Hotel</option><option value="other">Other</option></select>'+
+    '<div id="b-fields"></div><button class="btn" onclick="saveBk()">Save booking</button>');
+  bkFields();
+}
+
+function editBooking(bookingId){
+  var b=state.cache.bookings.filter(function(x){return x.booking_id===bookingId;})[0];
+  if(!b) return;
+  editingBooking=b;
+  var kinds=['flight','train','event','hotel','other'];
+  var sel='<label>Kind</label><select id="b-kind" onchange="bkFields()">';
+  kinds.forEach(function(k){ sel+='<option value="'+k+'"'+(k===b.kind?' selected':'')+'>'+k.charAt(0).toUpperCase()+k.slice(1)+'</option>'; });
+  sel+='</select>';
+  openSheet(sheetHead('Edit booking')+sel+
+    '<div id="b-fields"></div>'+
+    '<button class="btn" onclick="saveBk()">Save changes</button>'+
+    '<button class="btn ghost" style="margin-top:8px" onclick="delBooking(\''+bookingId+'\')">Delete booking</button>');
+  bkFields();
+}
+
+function bkFields(){
+  var kind=document.getElementById('b-kind').value, set=BK_FIELDS[kind]||BK_FIELDS.other, h='';
+  var b=editingBooking||{};
+  set.forEach(function(f){
+    var v=b[f[0]]?esc(b[f[0]]):'';
+    h+='<label>'+f[1]+'</label><input type="'+(f[2]||'text')+'" id="bf-'+f[0]+'" value="'+v+'">';
   });
-  var ok = deleteRowById_('Bookings', 'booking_id', data.booking_id);
-  return { deleted: ok };
-}
-
-// set just the live gate/platform value (the on-the-day update)
-function setGate_(data) {
-  var ok = updateRowById_('Bookings', 'booking_id', data.booking_id, {
-    platform_gate: data.platform_gate || '',
-    gate_known: true
-  });
-  return { updated: ok };
-}
-
-
-// One call that returns everything the trip view needs (speed fix)
-function getTripBundle_(tripId) {
-  return {
-    itinerary: getItinerary_(tripId),
-    milestones: getMilestones_(tripId),
-    bookings: getBookings_(tripId),
-    summary: getItinerarySummary_(tripId)
-  };
-}
-
-function doGet(e) {
-  var action = (e && e.parameter && e.parameter.action) || 'ping';
-  try {
-    if (action === 'ping')       return jsonOutput({ ok: true, message: 'Execution API alive', serverTime: new Date().toISOString() });
-    if (action === 'getTrips')     return jsonOutput({ ok: true, trips: getTrips_() });
-    if (action === 'getMilestones') return jsonOutput({ ok: true, milestones: getMilestones_(e.parameter.trip || null) });
-    if (action === 'getDeadlines')  return jsonOutput({ ok: true, deadlines: getDeadlines_() });
-    if (action === 'getItinerary')  return jsonOutput({ ok: true, itinerary: getItinerary_(e.parameter.trip || null) });
-    if (action === 'getItinerarySummary') return jsonOutput({ ok: true, summary: getItinerarySummary_(e.parameter.trip || null) });
-    if (action === 'getBookings')   return jsonOutput({ ok: true, bookings: getBookings_(e.parameter.trip || null) });
-    if (action === 'getTripBundle') return jsonOutput({ ok: true, bundle: getTripBundle_(e.parameter.trip || null) });
-    return jsonOutput({ ok: false, error: 'Unknown GET action: ' + action });
-  } catch (err) {
-    return jsonOutput({ ok: false, error: err.message });
+  if(GATE_KINDS[kind]){
+    var gv=(b.platform_gate)?esc(b.platform_gate):'';
+    h+='<label>'+GATE_KINDS[kind]+' (leave blank until known)</label><input id="bf-platform_gate" placeholder="fill on the day" value="'+gv+'">';
   }
+  document.getElementById('b-fields').innerHTML=h;
 }
 
-function doPost(e) {
-  var data = {};
-  try { data = JSON.parse(e.postData.contents); }
-  catch (err) { return jsonOutput({ ok: false, error: 'Bad JSON body' }); }
-
-  try {
-    if (data.action === 'createTrip')      return jsonOutput({ ok: true, result: createTrip_(data) });
-    if (data.action === 'updateTrip')      return jsonOutput({ ok: true, result: updateTrip_(data) });
-    if (data.action === 'addMilestone')    return jsonOutput({ ok: true, result: addMilestone_(data) });
-    if (data.action === 'updateMilestone') return jsonOutput({ ok: true, result: updateMilestone_(data) });
-    if (data.action === 'deleteMilestone') return jsonOutput({ ok: true, result: deleteMilestone_(data) });
-    if (data.action === 'addItineraryItem')    return jsonOutput({ ok: true, result: addItineraryItem_(data) });
-    if (data.action === 'updateItineraryItem') return jsonOutput({ ok: true, result: updateItineraryItem_(data) });
-    if (data.action === 'deleteItineraryItem') return jsonOutput({ ok: true, result: deleteItineraryItem_(data) });
-    if (data.action === 'toggleChecklistItem') return jsonOutput({ ok: true, result: toggleChecklistItem_(data) });
-    if (data.action === 'saveBooking')     return jsonOutput({ ok: true, result: saveBooking_(data) });
-    if (data.action === 'deleteBooking')   return jsonOutput({ ok: true, result: deleteBooking_(data) });
-    if (data.action === 'deleteTrip')      return jsonOutput(deleteTrip_(data));
-    if (data.action === 'setGate')         return jsonOutput({ ok: true, result: setGate_(data) });
-    return jsonOutput({ ok: false, error: 'Unknown POST action: ' + data.action });
-  } catch (err) {
-    return jsonOutput({ ok: false, error: err.message });
-  }
+function saveBk(){
+  var kind=document.getElementById('b-kind').value, set=BK_FIELDS[kind]||BK_FIELDS.other;
+  var p={action:'saveBooking',trip_id:state.trip.trip_id,kind:kind};
+  if(editingBooking) p.booking_id=editingBooking.booking_id;  // update in place
+  set.forEach(function(f){ var el=document.getElementById('bf-'+f[0]); if(el) p[f[0]]=el.value.trim(); });
+  var g=document.getElementById('bf-platform_gate'); if(g&&g.value.trim()){ p.platform_gate=g.value.trim(); p.gate_known=true; }
+  closeSheet(); toast(editingBooking?'Booking updated':'Booking saved');
+  apiPost(p).then(function(d){ if(d.ok){ openTrip(state.trip.trip_id); } else toast('Error: '+d.error); })
+    .catch(function(){ toast('Could not save'); });
+  editingBooking=null;
 }
+
+function delBooking(bookingId){
+  if(!confirm('Delete this booking?')) return;
+  state.cache.bookings=state.cache.bookings.filter(function(x){return x.booking_id!==bookingId;});
+  closeSheet(); renderTab(); toast('Booking deleted');
+  apiPost({action:'deleteBooking',booking_id:bookingId}).catch(function(){ toast('Could not save'); });
+  editingBooking=null;
+}
+</script>
+</body>
+</html>
