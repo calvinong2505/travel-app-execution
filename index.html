@@ -30,10 +30,54 @@
     color:var(--t1);-webkit-text-size-adjust:100%;min-height:100vh;overscroll-behavior-y:none;}
   .wrap{max-width:560px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;}
 
+  /* ===== Trips-mode redesign (liquid glass) ===== */
+  body.trips-mode{background:#EFE4E2;
+    background-image:
+      radial-gradient(circle at 16% 8%, rgba(210,80,68,0.20) 0%, transparent 46%),
+      radial-gradient(circle at 88% 16%, rgba(224,168,60,0.17) 0%, transparent 42%),
+      radial-gradient(circle at 60% 97%, rgba(170,90,120,0.13) 0%, transparent 52%);}
+  .trips-bg{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;}
+  .trips-bg .routes{position:absolute;inset:0;width:100%;height:100%;opacity:0.7;}
+  .trips-bg .plane{position:absolute;opacity:0.8;}
+  .trips-bg .plane.p1{left:66%;top:calc(24px + env(safe-area-inset-top));transform:rotate(16deg);}
+  .trips-bg .plane.p2{left:14%;top:44%;transform:rotate(-12deg);}
+  .trips-bg .plane.p3{left:70%;top:82%;transform:rotate(14deg);}
+  body.trips-mode .wrap{position:relative;z-index:1;background:transparent;}
+  /* translucent header so blooms show through the top */
+  .hd-trips{background:transparent !important;background-image:
+    linear-gradient(135deg, rgba(201,40,46,0.92) 0%, rgba(160,27,32,0.88) 55%, rgba(138,20,24,0.9) 100%) !important;
+    backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px);}
+  .trips-body-wrap{position:relative;z-index:1;}
+
+  .glass-card{position:relative;display:flex;overflow:hidden;
+    background:rgba(255,255,255,0.46);
+    backdrop-filter:blur(15px) saturate(1.3);-webkit-backdrop-filter:blur(15px) saturate(1.3);
+    border:0.5px solid rgba(255,255,255,0.62);border-radius:18px;margin-bottom:14px;
+    box-shadow:0 6px 22px rgba(120,40,40,0.10), inset 0 1px 0 rgba(255,255,255,0.7);
+    animation:cardIn .3s ease backwards;}
+  @keyframes cardIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+  .gc-flag{width:5px;flex-shrink:0;}
+  .gc-main{flex:1;min-width:0;padding:15px 16px;}
+  .gc-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;}
+  .gc-name{color:#3a1a1a;font-size:21px;font-weight:800;letter-spacing:-0.3px;line-height:1.1;}
+  .gc-sub{color:rgba(60,30,30,0.7);font-size:13px;margin-top:3px;font-weight:500;}
+  .gc-badge{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;padding:4px 9px;border-radius:20px;border:0.5px solid;white-space:nowrap;flex-shrink:0;}
+  .gc-countdown{display:flex;align-items:baseline;gap:6px;margin-top:11px;}
+  .gc-countdown .cd-num{font-size:26px;font-weight:800;color:var(--acc);line-height:1;}
+  .gc-countdown .cd-txt{font-size:13px;color:rgba(60,30,30,0.65);font-weight:600;}
+  .gc-foot{display:flex;align-items:center;gap:8px;margin-top:12px;padding-top:11px;border-top:0.5px solid rgba(120,60,60,0.14);}
+  .gc-foot .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+  .gc-foot .dot.red{background:var(--red);} .gc-foot .dot.gold{background:var(--gold);} .gc-foot .dot.green{background:var(--green);}
+  .gc-foot .foot-label{flex:1;font-size:13px;color:rgba(60,30,30,0.75);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .gc-foot .foot-due{font-size:12px;color:rgba(60,30,30,0.6);font-weight:600;}
+  .gc-foot .foot-due.soon{color:var(--red);}
+  body.trips-mode .sec{position:relative;z-index:1;color:rgba(60,30,30,0.55);}
+  body.trips-mode .empty{position:relative;z-index:1;}
+
   /* Header */
   .hd{background:var(--red);
     background-image:linear-gradient(135deg,#C9282E 0%,var(--red-2) 55%,var(--red-3) 100%);
-    color:#fff;padding:20px 20px 34px;position:relative;overflow:hidden;}
+    color:#fff;padding:calc(20px + env(safe-area-inset-top)) 20px 34px;position:relative;overflow:hidden;}
   .hd::after{content:'';position:absolute;top:-40%;right:-10%;width:220px;height:220px;
     background:radial-gradient(circle,rgba(255,255,255,0.10) 0%,transparent 70%);pointer-events:none;}
   .hd::before{content:'';position:absolute;bottom:0;left:0;right:0;height:60px;
@@ -67,6 +111,26 @@
   .card.tap:active{transform:scale(0.99);}
   .card-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;}
   .card-title{font-size:18px;font-weight:700;color:var(--ink);}
+  /* imagery trip cards */
+  .trip-card{padding:0;overflow:hidden;position:relative;}
+  .dest-art{height:120px;width:100%;position:relative;overflow:hidden;}
+  .dest-art svg{position:absolute;inset:0;width:100%;height:100%;display:block;}
+  .trip-badge{position:absolute;top:12px;right:12px;background:rgba(255,255,255,0.24);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);color:#fff;font-size:10px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;padding:4px 10px;border-radius:20px;}
+  .trip-name{position:absolute;top:88px;left:16px;color:#fff;font-size:23px;font-weight:800;letter-spacing:-0.3px;text-shadow:0 1px 10px rgba(0,0,0,0.35);}
+  .trip-body{padding:16px;}
+  .countdown{display:flex;align-items:baseline;gap:6px;margin-top:10px;}
+  .cd-num{font-size:28px;font-weight:800;color:var(--red);line-height:1;}
+  .cd-txt{font-size:13px;color:var(--t2);font-weight:600;}
+  /* confetti + celebration */
+  .confetti-pc{position:fixed;top:-20px;width:10px;height:14px;z-index:200;pointer-events:none;border-radius:2px;animation:confetti-fall linear forwards;}
+  @keyframes confetti-fall{to{transform:translateY(110vh) rotate(720deg);opacity:1;}}
+  .celebrate{position:fixed;inset:0;z-index:190;display:flex;align-items:center;justify-content:center;background:rgba(40,20,22,0.4);animation:fadeIn .2s ease;}
+  .celebrate-card{background:#fff;border-radius:20px;padding:28px 26px;text-align:center;max-width:300px;margin:20px;box-shadow:0 12px 40px rgba(0,0,0,0.25);animation:pop .35s cubic-bezier(.2,1.3,.5,1);}
+  @keyframes pop{from{transform:scale(0.8);opacity:0;}to{transform:scale(1);opacity:1;}}
+  .celebrate-emoji{font-size:44px;}
+  .celebrate-title{font-size:19px;font-weight:800;margin-top:8px;color:var(--ink);}
+  .celebrate-sub{font-size:14px;color:var(--t2);margin-top:5px;}
+  .celebrate-btn{margin-top:16px;background:var(--red);color:#fff;border:none;border-radius:10px;padding:11px 22px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;}
   .card-sub{font-size:13px;color:var(--t2);margin-top:3px;}
   .card-foot{display:flex;align-items:center;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--line);}
 
@@ -207,14 +271,160 @@ var QUOTES = [
 ];
 function pickQuote(){ return QUOTES[Math.floor(Math.random()*QUOTES.length)]; }
 
+// ---- Country identity: map a trip's (first) city -> country -> flag colours ----
+// primary = dominant accent (countdown number, pill); bars = flag stripe colours (edge bar)
+var COUNTRY_STYLE = {
+  spain:      { name:'Spain',       primary:'#C8433B', bars:['#C8433B','#E0A83C'] },
+  scotland:   { name:'Scotland',    primary:'#2C5FA8', bars:['#2C5FA8','#EDEDED'] },
+  england:    { name:'England',     primary:'#C0392B', bars:['#EDEDED','#C0392B'] },
+  italy:      { name:'Italy',       primary:'#3E7D4F', bars:['#3E7D4F','#EDE6D8','#C0413B'] },
+  france:     { name:'France',      primary:'#3B5BA0', bars:['#3B5BA0','#EDE6D8','#C0413B'] },
+  switzerland:{ name:'Switzerland', primary:'#C0392B', bars:['#C0392B','#EDEDED'] },
+  austria:    { name:'Austria',     primary:'#C0392B', bars:['#C0392B','#EDEDED','#C0392B'] },
+  hungary:    { name:'Hungary',     primary:'#3E7D4F', bars:['#C0413B','#EDE6D8','#3E7D4F'] },
+  poland:     { name:'Poland',      primary:'#C0413B', bars:['#EDEDED','#C0413B'] },
+  portugal:   { name:'Portugal',   primary:'#3E7D4F', bars:['#3E7D4F','#C0413B'] },
+  croatia:    { name:'Croatia',     primary:'#C0413B', bars:['#C0413B','#EDEDED','#2C5FA8'] },
+  bosnia:     { name:'Bosnia',      primary:'#2C5FA8', bars:['#2C5FA8','#E0A83C'] },
+  slovenia:   { name:'Slovenia',    primary:'#2C5FA8', bars:['#EDEDED','#2C5FA8','#C0413B'] },
+  generic:    { name:'',            primary:'#B81E22', bars:['#B81E22','#8A1418'] }
+};
+// city (or partial) -> country key. first-named city wins for multi-city trips.
+var CITY_COUNTRY = {
+  barcelona:'spain', madrid:'spain', seville:'spain', valencia:'spain',
+  glencoe:'scotland', glasgow:'scotland', edinburgh:'scotland',
+  london:'england', manchester:'england',
+  rome:'italy', roma:'italy', milan:'italy', napoli:'italy', naples:'italy', bologna:'italy', sicily:'italy',
+  paris:'france', lourdes:'france', lyon:'france',
+  zurich:'switzerland', geneva:'switzerland',
+  vienna:'austria',
+  budapest:'hungary',
+  krakow:'poland', warsaw:'poland', warszawa:'poland',
+  lisbon:'portugal', porto:'portugal', fatima:'portugal',
+  zagreb:'croatia',
+  sarajevo:'bosnia',
+  ljubljana:'slovenia'
+};
+function countryStyle(destination){
+  var s=(destination||'').toLowerCase();
+  var first=s.split(/[+,/]/)[0].trim();
+  var keys=Object.keys(CITY_COUNTRY);
+  for(var i=0;i<keys.length;i++){ if(first.indexOf(keys[i])!==-1) return COUNTRY_STYLE[CITY_COUNTRY[keys[i]]]; }
+  for(var j=0;j<keys.length;j++){ if(s.indexOf(keys[j])!==-1) return COUNTRY_STYLE[CITY_COUNTRY[keys[j]]]; }
+  return COUNTRY_STYLE.generic;
+}
+function flagBar(style){
+  var c=style.bars, n=c.length, step=100/n, stops=[];
+  for(var i=0;i<n;i++){ stops.push(c[i]+' '+(i*step)+'%'); stops.push(c[i]+' '+((i+1)*step)+'%'); }
+  return 'linear-gradient(180deg,'+stops.join(',')+')';
+}
+
+// ---- Destination imagery (stylized inline-SVG illustrations, matched by city) ----
+function destKey(destination){
+  var s=(destination||'').toLowerCase();
+  var first=s.split(/[+,/]/)[0].trim();
+  var cities=['barcelona','glencoe','rome','roma'];
+  for(var i=0;i<cities.length;i++){ if(first.indexOf(cities[i])!==-1) return cities[i]==='roma'?'rome':cities[i]; }
+  for(var j=0;j<cities.length;j++){ if(s.indexOf(cities[j])!==-1) return cities[j]==='roma'?'rome':cities[j]; }
+  return 'generic';
+}
+function destArt(destination){
+  var key=destKey(destination);
+  var sky={ barcelona:'linear-gradient(180deg,#E8927C 0%,#C15B4E 55%,#8A1418 100%)',
+            glencoe:'linear-gradient(180deg,#8FA9B8 0%,#5E7C8C 55%,#39505C 100%)',
+            rome:'linear-gradient(180deg,#F0B07C 0%,#C97A45 55%,#8A3E18 100%)',
+            generic:'linear-gradient(135deg,#C9282E 0%,#A01B20 55%,#8A1418 100%)' }[key];
+  var inner={
+    barcelona:'<circle cx="278" cy="30" r="15" fill="#FBE3C0" opacity="0.85"/>'+
+      '<g fill="#5A1418" opacity="0.30"><rect x="14" y="92" width="24" height="38"/><rect x="42" y="82" width="18" height="48"/><rect x="248" y="88" width="26" height="42"/><rect x="292" y="76" width="20" height="54"/><rect x="316" y="96" width="18" height="34"/></g>'+
+      '<g fill="#4A0F14" opacity="0.5"><path d="M150 130 L150 46 Q152 32 156 46 L156 130 Z"/><path d="M166 130 L166 36 Q168 20 172 36 L172 130 Z"/><path d="M182 130 L182 46 Q184 32 188 46 L188 130 Z"/><path d="M128 130 L128 56 Q131 42 135 56 L135 130 Z"/><path d="M198 130 L198 56 Q201 42 205 56 L205 130 Z"/><circle cx="153" cy="44" r="2.5" fill="#FBE3C0"/><circle cx="169" cy="34" r="2.5" fill="#FBE3C0"/><circle cx="185" cy="44" r="2.5" fill="#FBE3C0"/></g>',
+    glencoe:'<circle cx="270" cy="30" r="13" fill="#EAF0F2" opacity="0.75"/>'+
+      '<path d="M0 130 L60 60 L110 100 L150 55 L210 110 L250 70 L340 120 L340 130 Z" fill="#39505C" opacity="0.55"/>'+
+      '<path d="M0 130 L40 88 L90 120 L140 80 L190 125 L240 95 L300 128 L340 108 L340 130 Z" fill="#2C3E48" opacity="0.6"/>'+
+      '<path d="M150 55 L158 70 L142 70 Z" fill="#EAF0F2" opacity="0.7"/>',
+    rome:'<circle cx="60" cy="34" r="15" fill="#FBE3C0" opacity="0.8"/>'+
+      '<g fill="#5A2A10" opacity="0.5"><path d="M130 118 Q130 66 210 62 Q290 66 290 118 L290 130 L130 130 Z"/></g>'+
+      '<g fill="#F0B07C" opacity="0.85"><rect x="146" y="82" width="10" height="20" rx="4"/><rect x="168" y="80" width="10" height="22" rx="4"/><rect x="192" y="78" width="10" height="24" rx="4"/><rect x="216" y="80" width="10" height="22" rx="4"/><rect x="240" y="82" width="10" height="20" rx="4"/><rect x="264" y="86" width="10" height="16" rx="4"/></g>',
+    generic:'<circle cx="278" cy="30" r="14" fill="#FBE3C0" opacity="0.7"/>'+
+      '<path d="M60 100 L280 60 L285 74 L120 108 Z" fill="#fff" opacity="0.25"/>'+
+      '<path d="M150 92 L170 50 L182 54 L170 96 Z" fill="#fff" opacity="0.3"/>'+
+      '<circle cx="90" cy="115" r="3" fill="#fff" opacity="0.4"/><circle cx="250" cy="40" r="2.5" fill="#fff" opacity="0.5"/>'
+  }[key];
+  return '<div class="dest-art" style="background:'+sky+'">'+
+    '<svg viewBox="0 0 340 130" preserveAspectRatio="xMidYMax slice" aria-hidden="true">'+inner+'</svg></div>';
+}
+function daysUntil(dateStr){
+  var d=normDateSafe(dateStr); if(!d) return null;
+  var t=new Date(); t.setHours(0,0,0,0);
+  var target=new Date(d+'T00:00:00');
+  return Math.round((target-t)/86400000);
+}
+function normDateSafe(s){ if(!s) return ''; var t=s.toString(); if(/^\d{4}-\d{2}-\d{2}$/.test(t)) return t;
+  var mons={Jan:'01',Feb:'02',Mar:'03',Apr:'04',May:'05',Jun:'06',Jul:'07',Aug:'08',Sep:'09',Oct:'10',Nov:'11',Dec:'12'};
+  var m=t.match(/\b([A-Z][a-z]{2})\s+(\d{1,2})\s+(\d{4})\b/); if(m&&mons[m[1]]) return m[3]+'-'+mons[m[1]]+'-'+('0'+m[2]).slice(-2);
+  if(t.indexOf('T')!==-1&&/^\d{4}-/.test(t)) return t.split('T')[0]; return ''; }
+function countdownLabel(t){
+  var n=daysUntil(t.start_date);
+  if(n===null) return '';
+  if(n>1) return '<span class="cd-num">'+n+'</span> <span class="cd-txt">days to go ⚽</span>';
+  if(n===1) return '<span class="cd-num">1</span> <span class="cd-txt">day to go ⚽</span>';
+  if(n===0) return '<span class="cd-txt" style="color:var(--green);font-weight:800">Today\'s the day! 🎉</span>';
+  var end=daysUntil(t.end_date);
+  if(end!==null && end>=0) return '<span class="cd-txt" style="color:var(--red);font-weight:800">On your trip now ✈️</span>';
+  return '<span class="cd-txt" style="color:var(--t3)">Trip complete</span>';
+}
+
+// ---- Confetti + celebration ----
+function fireConfetti(){
+  var colors=['#B81E22','#E8927C','#FBE3C0','#2E7D32','#F0B07C','#C15B4E'];
+  for(var i=0;i<80;i++){
+    (function(i){
+      var pc=document.createElement('div');
+      pc.className='confetti-pc';
+      pc.style.left=(Math.random()*100)+'vw';
+      pc.style.background=colors[Math.floor(Math.random()*colors.length)];
+      pc.style.animationDuration=(2+Math.random()*2)+'s';
+      pc.style.animationDelay=(Math.random()*0.5)+'s';
+      pc.style.opacity=0;
+      if(Math.random()>0.5) pc.style.borderRadius='50%';
+      document.body.appendChild(pc);
+      setTimeout(function(){ if(pc.parentNode) pc.parentNode.removeChild(pc); },4500);
+    })(i);
+  }
+}
+function celebrate(title,sub,emoji){
+  fireConfetti();
+  var ov=document.createElement('div');
+  ov.className='celebrate';
+  ov.innerHTML='<div class="celebrate-card"><div class="celebrate-emoji">'+(emoji||'⚽')+'</div>'+
+    '<div class="celebrate-title">'+esc(title)+'</div>'+
+    '<div class="celebrate-sub">'+esc(sub)+'</div>'+
+    '<button class="celebrate-btn" onclick="this.closest(\'.celebrate\').remove()">Let\'s go!</button></div>';
+  ov.onclick=function(e){ if(e.target===ov) ov.remove(); };
+  document.body.appendChild(ov);
+}
+// check if a trip just became fully booked and celebrate once per trip per session
+var celebrated={};
+function checkAllBooked(){
+  var items=state.cache.itinerary||[];
+  if(items.length<2) return; // don't celebrate a trip with 0-1 stops
+  var allBooked=items.every(function(x){return x.status==='booked';});
+  var tripId=state.trip&&state.trip.trip_id;
+  if(allBooked && tripId && !celebrated[tripId]){
+    celebrated[tripId]=true;
+    setTimeout(function(){ celebrate('You\'re all set for '+state.trip.destination+'!','Everything\'s booked. Have an amazing trip.','⚽'); },350);
+  }
+}
+
 var TAB_EMOJI = { itinerary:'🗺️', milestones:'🎯', bookings:'🎟️' };
 
 // paint a screen into the wrap with a fade, and stagger the cards
 function paint(html){
   var w=document.getElementById('wrap');
+  document.body.classList.remove('trips-mode');
   w.innerHTML=html;
   w.classList.remove('fade-in'); void w.offsetWidth; w.classList.add('fade-in');
-  var items=w.querySelectorAll('.card,.stop,.ms,.bk');
+  var items=w.querySelectorAll('.card,.stop,.ms,.bk,.glass-card');
   for(var i=0;i<items.length;i++){ items[i].style.animationDelay=(i*0.03)+'s'; }
 }
 
@@ -295,44 +505,73 @@ function nextDeadlineFor(tripId){
 }
 
 function renderTrips(){
-  var h = '<div class="hd"><button class="hd-refresh" onclick="doRefresh(this)">↻</button><div class="hd-eyebrow">EuroTrip</div>'+
+  var h = '<div class="trips-bg" aria-hidden="true">'+ambientBg()+'</div>'+
+    '<div class="hd hd-trips"><button class="hd-refresh" onclick="doRefresh(this)">↻</button><div class="hd-eyebrow">EuroTrip</div>'+
     '<div class="hd-title">Your trips</div>'+
     '<div class="hd-sub">'+state.trips.length+' trip'+(state.trips.length===1?'':'s')+'</div>'+
     '<div class="quote">'+pickQuote()+'</div></div>'+
-    '<div class="body pull">';
+    '<div class="body pull trips-body-wrap">';
   if(!state.trips.length){
     h += '<div class="empty">No trips yet. ✈️<br>Tap + to add your first.</div>';
   } else {
     state.trips.forEach(function(t){
       var nd = nextDeadlineFor(t.trip_id);
       var dotcls = nd ? (soon(nd.due_date)?'red':'gold') : 'green';
-      h += '<div class="card tap" onclick="openTrip(\''+t.trip_id+'\')">'+
-        '<div class="card-top"><div class="card-title">'+esc(t.destination)+'</div>'+
-        '<span class="pill '+esc(t.status)+'">'+esc(t.status)+'</span></div>'+
-        '<div class="card-sub">'+fmtNice(t.start_date)+' – '+fmtNice(t.end_date)+
-        (t.home_airport?' · from '+esc(t.home_airport):'')+'</div>';
-      if(nd){
-        h += '<div class="card-foot"><span class="dot '+dotcls+'"></span>'+
-          '<span class="foot-label">'+esc(nd.name.length>34?nd.name.slice(0,34)+'…':nd.name)+'</span>'+
-          '<span class="foot-due'+(soon(nd.due_date)?' soon':'')+'">'+
-          (soon(nd.due_date)?(nd.due_date===today()?'due today':'due '+fmtNice(nd.due_date)):fmtNice(nd.due_date))+'</span></div>';
-      } else {
-        h += '<div class="card-foot"><span class="dot green"></span><span class="foot-label">All milestones done</span></div>';
-      }
-      h += '</div>';
+      var cd = countdownLabel(t);
+      var cs = countryStyle(t.destination);
+      h += '<div class="glass-card tap" onclick="openTrip(\''+t.trip_id+'\')">'+
+        '<div class="gc-flag" style="background:'+flagBar(cs)+'"></div>'+
+        '<div class="gc-main">'+
+          '<div class="gc-top">'+
+            '<div><div class="gc-name">'+esc(t.destination)+'</div>'+
+            '<div class="gc-sub">'+(cs.name?esc(cs.name)+' · ':'')+fmtNice(t.start_date)+' – '+fmtNice(t.end_date)+
+            (t.home_airport?' · from '+esc(t.home_airport):'')+'</div></div>'+
+            '<div class="gc-badge" style="color:'+cs.primary+';border-color:'+hexA(cs.primary,0.35)+';background:'+hexA(cs.primary,0.12)+'">'+esc(t.status)+'</div>'+
+          '</div>'+
+          (cd?'<div class="gc-countdown" style="--acc:'+cs.primary+'">'+cd+'</div>':'')+
+          gcFoot(nd,dotcls)+
+        '</div></div>';
     });
-    // deadlines shortcut
     if(state.deadlines.length){
       h += '<div class="sec">Across all trips</div>'+
-        '<div class="card tap" onclick="openDeadlines()"><div class="card-top">'+
-        '<div class="card-title" style="font-size:15px">⏰ Deadlines</div>'+
-        '<span class="pill upcoming">'+state.deadlines.length+' open</span></div>'+
-        '<div class="card-sub">Next: '+esc(state.deadlines[0].name.slice(0,30))+' · '+fmtNice(state.deadlines[0].due_date)+'</div></div>';
+        '<div class="glass-card tap" onclick="openDeadlines()"><div class="gc-main">'+
+        '<div class="gc-top"><div class="gc-name" style="font-size:16px">⏰ Deadlines</div>'+
+        '<span class="gc-badge" style="color:var(--red-2);border-color:'+hexA('#B81E22',0.3)+';background:'+hexA('#B81E22',0.1)+'">'+state.deadlines.length+' open</span></div>'+
+        '<div class="gc-sub" style="margin-top:6px">Next: '+esc(state.deadlines[0].name.slice(0,30))+' · '+fmtNice(state.deadlines[0].due_date)+'</div></div></div>';
     }
   }
   h += '</div>';
   paint(h);
+  document.body.classList.add('trips-mode');
   var fab=document.getElementById('fab'); fab.style.display='block'; fab.textContent='+';
+}
+function gcFoot(nd,dotcls){
+  if(nd){
+    return '<div class="gc-foot"><span class="dot '+dotcls+'"></span>'+
+      '<span class="foot-label">'+esc(nd.name.length>34?nd.name.slice(0,34)+'…':nd.name)+'</span>'+
+      '<span class="foot-due'+(soon(nd.due_date)?' soon':'')+'">'+
+      (soon(nd.due_date)?(nd.due_date===today()?'due today':'due '+fmtNice(nd.due_date)):fmtNice(nd.due_date))+'</span></div>';
+  }
+  return '<div class="gc-foot"><span class="dot green"></span><span class="foot-label">All milestones done 🎉</span></div>';
+}
+function hexA(hex,a){
+  var h=hex.replace('#',''); if(h.length===3) h=h[0]+h[0]+h[1]+h[1]+h[2]+h[2];
+  var r=parseInt(h.slice(0,2),16),g=parseInt(h.slice(2,4),16),b=parseInt(h.slice(4,6),16);
+  return 'rgba('+r+','+g+','+b+','+a+')';
+}
+// ambient background: dashed flight routes + planes, positioned in open areas
+function ambientBg(){
+  return '<svg class="routes" viewBox="0 0 360 700" preserveAspectRatio="none" aria-hidden="true">'+
+    '<path d="M-10 80 Q150 20 380 60" fill="none" stroke="#C06A5E" stroke-width="1.4" stroke-dasharray="5 6"/>'+
+    '<path d="M-10 340 Q170 410 380 330" fill="none" stroke="#C89A4C" stroke-width="1.4" stroke-dasharray="5 6"/>'+
+    '<path d="M-10 600 Q160 540 380 590" fill="none" stroke="#B07A9C" stroke-width="1.4" stroke-dasharray="5 6"/>'+
+    '</svg>'+
+    '<span class="plane p1">'+planeSvg('#B8483E')+'</span>'+
+    '<span class="plane p2">'+planeSvg('#C08A3C')+'</span>'+
+    '<span class="plane p3">'+planeSvg('#B07A9C')+'</span>';
+}
+function planeSvg(color){
+  return '<svg viewBox="0 0 24 24" width="22" height="22" fill="'+color+'"><path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L12 19v-5.5z"/></svg>';
 }
 
 // ---- Cross-trip deadlines screen ----
@@ -649,6 +888,7 @@ function saveEditStop(itemId){
   if(it){ Object.keys(changes).forEach(function(k){ it[k]=changes[k]; }); }
   recomputeSummary();
   closeSheet(); renderTrip(false); toast("Stop updated");
+  checkAllBooked();
   apiPost({action:'updateItineraryItem',item_id:itemId,changes:changes}).catch(function(){ toast('Could not save'); });
 }
 function delStop(itemId){
