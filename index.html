@@ -76,6 +76,31 @@
   body.trips-mode .sec{position:relative;z-index:1;color:rgba(60,30,30,0.55);}
   body.trips-mode .empty{position:relative;z-index:1;}
 
+  /* ===== Trip detail: glass background + floating bottom tab bar ===== */
+  body.detail-mode{background:#ECE0DE;
+    background-image:
+      radial-gradient(circle at 12% 4%, rgba(210,80,68,0.16) 0%, transparent 42%),
+      radial-gradient(circle at 90% 90%, rgba(180,120,150,0.16) 0%, transparent 46%);}
+  .trip-detail-body{padding-bottom:96px !important;}
+  .btabs-wrap{position:fixed;left:0;right:0;bottom:calc(16px + env(safe-area-inset-bottom));z-index:30;display:flex;justify-content:center;pointer-events:none;}
+  .btabs{position:relative;display:flex;gap:2px;padding:5px;pointer-events:auto;
+    background:rgba(255,255,255,0.55);
+    backdrop-filter:blur(24px) saturate(1.8);-webkit-backdrop-filter:blur(24px) saturate(1.8);
+    border:0.5px solid rgba(255,255,255,0.7);border-radius:28px;
+    box-shadow:0 8px 32px rgba(120,40,40,0.22), inset 0 1px 0 rgba(255,255,255,0.9);}
+  .btab-glide{position:absolute;top:5px;left:5px;bottom:5px;width:calc((100% - 10px)/3);
+    background:linear-gradient(135deg,#C9282E,#A01B20);border-radius:24px;z-index:0;
+    box-shadow:0 3px 10px rgba(160,27,32,0.4);
+    transition:transform .32s cubic-bezier(.34,1.4,.5,1);}
+  .btab{position:relative;z-index:1;flex:1;min-width:88px;border:none;background:none;font-family:inherit;cursor:pointer;
+    padding:9px 8px;display:flex;flex-direction:column;align-items:center;gap:2px;border-radius:24px;
+    color:var(--t2);transition:color .25s;}
+  .btab-ico{font-size:17px;line-height:1;}
+  .btab-lbl{font-size:11px;font-weight:700;letter-spacing:0.2px;}
+  .btab.on{color:#fff;}
+  /* FAB sits above the bottom bar on detail screen */
+  body.detail-mode .fab{bottom:calc(84px + env(safe-area-inset-bottom));}
+
   /* Header */
   .hd{background:var(--red);
     background-image:linear-gradient(135deg,#C9282E 0%,var(--red-2) 55%,var(--red-3) 100%);
@@ -425,6 +450,7 @@ var TAB_EMOJI = { itinerary:'🗺️', milestones:'🎯', bookings:'🎟️' };
 function paint(html){
   var w=document.getElementById('wrap');
   document.body.classList.remove('trips-mode');
+  document.body.classList.remove('detail-mode');
   w.innerHTML=html;
   w.classList.remove('fade-in'); void w.offsetWidth; w.classList.add('fade-in');
   var items=w.querySelectorAll('.card,.stop,.ms,.bk,.glass-card');
@@ -653,12 +679,24 @@ function renderTrip(loading){
         (loading?'…':(nd?esc(nd.name.split(' ').slice(0,2).join(' '))+' · '+(nd.due_date===today()?'today':fmtNice(nd.due_date)):'All done'))+
       '</div></div>'+
     '</div></div>'+
-    '<div class="tabs">'+
-      tabBtn('itinerary','🗺️ Itinerary')+tabBtn('milestones','🎯 Milestones')+tabBtn('bookings','🎟️ Bookings')+
-    '</div><div class="body" id="tabbody" style="padding-top:6px">'+(loading?'<div class="spin"></div>':'')+'</div>';
+    '<div class="body trip-detail-body" id="tabbody" style="padding-top:10px">'+(loading?'<div class="spin"></div>':'')+'</div>'+
+    bottomTabBar();
   paint(h);
+  document.body.classList.add('detail-mode');
   if(!loading) renderTab();
   var fab=document.getElementById('fab'); fab.style.display='block'; fab.textContent='+';
+}
+function bottomTabBar(){
+  var tabs=[['itinerary','🗺️','Itinerary'],['milestones','🎯','Milestones'],['bookings','🎟️','Bookings']];
+  var idx=tabs.map(function(t){return t[0];}).indexOf(state.tab); if(idx<0) idx=0;
+  var h='<div class="btabs-wrap"><div class="btabs">'+
+    '<div class="btab-glide" style="transform:translateX('+(idx*100)+'%)"></div>';
+  tabs.forEach(function(t){
+    h+='<button class="btab'+(state.tab===t[0]?' on':'')+'" data-tab="'+t[0]+'" onclick="switchTab(\''+t[0]+'\')">'+
+      '<span class="btab-ico">'+t[1]+'</span><span class="btab-lbl">'+t[2]+'</span></button>';
+  });
+  h+='</div></div>';
+  return h;
 }
 // delete a trip (cascades to its itinerary, bookings, milestones)
 function confirmDeleteTrip(){
@@ -712,10 +750,15 @@ function _openTripTab(tripId,tab){
   });
 }
 function switchTab(id){ state.tab=id;
-  document.querySelectorAll('.tab').forEach(function(el){
-    el.classList.toggle('on', el.textContent.toLowerCase().indexOf(id)!==-1);
-  });
+  var tabs=['itinerary','milestones','bookings'];
+  var idx=tabs.indexOf(id); if(idx<0) idx=0;
+  var btns=document.querySelectorAll('.btab');
+  for(var i=0;i<btns.length;i++){ btns[i].classList.toggle('on', btns[i].getAttribute('data-tab')===id); }
+  var glide=document.querySelector('.btab-glide');
+  if(glide) glide.style.transform='translateX('+(idx*100)+'%)';
   renderTab();
+  // keep FAB relevant to the tab
+  var fab=document.getElementById('fab'); if(fab) fab.style.display='block';
 }
 
 function renderTab(){
