@@ -79,8 +79,15 @@
   /* ===== Trip detail: glass background + floating bottom tab bar ===== */
   body.detail-mode{background:#ECE0DE;
     background-image:
-      radial-gradient(circle at 12% 4%, rgba(210,80,68,0.16) 0%, transparent 42%),
-      radial-gradient(circle at 90% 90%, rgba(180,120,150,0.16) 0%, transparent 46%);}
+      radial-gradient(circle at 12% 4%, rgba(210,80,68,0.24) 0%, transparent 44%),
+      radial-gradient(circle at 88% 12%, rgba(224,168,60,0.18) 0%, transparent 40%),
+      radial-gradient(circle at 20% 55%, rgba(200,90,80,0.16) 0%, transparent 46%),
+      radial-gradient(circle at 85% 70%, rgba(180,120,150,0.20) 0%, transparent 48%),
+      radial-gradient(circle at 55% 96%, rgba(170,90,120,0.16) 0%, transparent 50%);}
+  body.detail-mode .wrap::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;opacity:0.5;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='360' height='700' viewBox='0 0 360 700'><g fill='none' stroke='%23C0796E' stroke-width='1.2' stroke-dasharray='5 6'><path d='M-10 120 Q160 60 380 110'/><path d='M-10 320 Q180 390 380 310'/><path d='M-10 540 Q160 480 380 530'/></g></svg>");
+    background-size:100% auto;background-repeat:no-repeat;background-position:top center;}
+  body.detail-mode .wrap>*{position:relative;z-index:1;}
   .trip-detail-body{padding-bottom:96px !important;}
   .btabs-wrap{position:fixed;left:0;right:0;bottom:calc(16px + env(safe-area-inset-bottom));z-index:30;display:flex;justify-content:center;pointer-events:none;}
   .btabs{position:relative;display:flex;gap:2px;padding:5px;pointer-events:auto;
@@ -923,7 +930,7 @@ function cleanD(d){ if(!d) return ''; var s=d.toString(); if(/^\d{4}-\d{2}-\d{2}
 function itinHtml(){
   var items=state.cache.itinerary, s=state.cache.summary;
   var h='<div class="card" style="padding:13px 15px;margin-bottom:12px"><div style="display:flex;justify-content:space-between;font-size:13px;font-weight:600;color:var(--t2)">'+
-    '<span>'+s.booked+' of '+s.total+' booked</span><span>planned '+s.planned_cost+'</span></div>'+
+    '<span>'+s.booked+' of '+s.total+' booked</span><span>planned: '+plannedCostLabel()+'</span></div>'+
     '<div class="prog"><div class="prog-fill" style="width:'+s.pct+'%"></div></div></div>';
   if(!items.length) return h+'<div class="empty">No stops yet. Tap + to add one. 🗺️</div>';
   var curDay=null;
@@ -1139,6 +1146,16 @@ function recomputeSummary(){
   state.cache.summary={total:items.length,booked:booked,
     pct:items.length?Math.round(booked/items.length*100):0,
     planned_cost:Math.round(planned*100)/100};
+}
+// show planned cost with currency when all costed stops share one currency, else just the number
+function plannedCostLabel(){
+  var items=state.cache.itinerary||[];
+  var s=state.cache.summary||{planned_cost:0};
+  var curs={};
+  items.forEach(function(x){ if((parseFloat(x.est_cost)||0)>0 && x.currency) curs[x.currency]=1; });
+  var keys=Object.keys(curs);
+  if(keys.length===1) return keys[0]+' '+s.planned_cost;
+  return s.planned_cost;
 }
 
 // ---- Add stop ----
