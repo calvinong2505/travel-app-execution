@@ -87,7 +87,7 @@
   body.detail-mode .wrap::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;opacity:0.5;
     background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='360' height='700' viewBox='0 0 360 700'><g fill='none' stroke='%23C0796E' stroke-width='1.2' stroke-dasharray='5 6'><path d='M-10 120 Q160 60 380 110'/><path d='M-10 320 Q180 390 380 310'/><path d='M-10 540 Q160 480 380 530'/></g></svg>");
     background-size:100% auto;background-repeat:no-repeat;background-position:top center;}
-  body.detail-mode .wrap>*{position:relative;z-index:1;}
+  body.detail-mode .wrap>*:not(.btabs-wrap){position:relative;z-index:1;}
   .trip-detail-body{padding-bottom:96px !important;}
   .btabs-wrap{position:fixed;left:0;right:0;bottom:calc(16px + env(safe-area-inset-bottom));z-index:30;display:flex;justify-content:center;pointer-events:none;}
   .btabs{position:relative;display:flex;gap:2px;padding:5px;pointer-events:auto;
